@@ -45,7 +45,7 @@ export class App {
   protected readonly cropSize = CROP_VIEW_SIZE;
   protected readonly maxZoom = MAX_ZOOM;
   protected readonly minZoom = MIN_ZOOM;
-  protected readonly projectName = 'iiSU Home Icon Mask Tool';
+  protected readonly projectName = 'iiSU Home icon generator';
   protected readonly minRotation = MIN_ROTATION;
   protected readonly maxRotation = MAX_ROTATION;
 
@@ -313,13 +313,8 @@ export class App {
 
     context.clearRect(0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
     this.drawRoundedRect(context, outerInset, outerInset, outerSize, outerSize, FRAME_RADIUS);
-    context.save();
-    context.shadowColor = `rgba(28, 73, 136, ${DEFAULT_GLOW_STRENGTH})`;
-    context.shadowBlur = 30;
-    context.shadowOffsetY = 12;
     context.fillStyle = '#ffffff';
     context.fill();
-    context.restore();
 
     context.save();
     this.drawRoundedRect(context, innerInset, innerInset, innerSize, innerSize, INNER_RADIUS);
