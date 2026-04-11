@@ -54,11 +54,11 @@ import { ImageSourceMode, LoadedImage, SearchResult } from '../../../core/types'
             Drag & drop or click to upload
           }
         </span>
-        <p class="dropzone-hint">PNG, JPEG, WebP or GIF (max 50MB)</p>
+        <p class="dropzone-hint">PNG, JPEG, WebP, GIF or ICO (max 50MB)</p>
         <input
           #fileInput
           type="file"
-          accept="image/png,image/jpeg,image/webp,image/gif"
+          accept="image/png,image/jpeg,image/webp,image/gif,image/x-icon,.ico"
           (change)="onFileSelected($event)"
           style="display: none"
         />
