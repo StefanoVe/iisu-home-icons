@@ -30,8 +30,24 @@
         <div class="crop-section">
           <div class="panel-header panel-header-compact">
             <h2>2. Edit</h2>
-            <button class="ghost-button" type="button" (click)="toggleGrid()">
-              {{ isGridVisible() ? 'Hide grid' : 'Show grid' }}
+            <button
+              class="icon-button"
+              type="button"
+              [attr.aria-label]="isGridVisible() ? 'Hide grid' : 'Show grid'"
+              [attr.aria-pressed]="isGridVisible()"
+              (click)="toggleGrid()"
+            >
+              <svg
+                width="64"
+                height="64"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M20 10V8h-4V4h-2v4h-4V4H8v4H4v2h4v4H4v2h4v4h2v-4h4v4h2v-4h4v-2h-4v-4h4Zm-6 4h-4v-4h4v4Z"
+                ></path>
+              </svg>
             </button>
           </div>
 
@@ -60,42 +76,42 @@
             <div class="crop-frame" aria-hidden="true"></div>
           </div>
 
-          <div class="flex w-full items-start justify-stretch gap-10">
-            <div class="w-full">
-              <label class="slider-field" for="zoom-control">
+          <div class="tool-grid">
+            <label class="slider-field" for="zoom-control">
+              <span class="field-header">
                 <span>Zoom</span>
-                <input
-                  id="zoom-control"
-                  type="range"
-                  [min]="minZoom"
-                  [max]="maxZoom"
-                  step="0.01"
-                  class="w-full"
-                  [value]="currentZoom()"
-                  (input)="onZoomChange($event)"
-                />
-              </label>
-            </div>
-            <div class="flex flex-col w-full">
-              <label class="slider-field" for="rotation-control">
+                <strong>{{ formatZoomValue(currentZoom()) }}</strong>
+              </span>
+              <input
+                id="zoom-control"
+                type="range"
+                [min]="minZoom"
+                [max]="maxZoom"
+                step="0.01"
+                [value]="currentZoom()"
+                (input)="onZoomChange($event)"
+              />
+            </label>
+
+            <label class="slider-field" for="rotation-control">
+              <span class="field-header">
                 <span>Rotate</span>
-                <input
-                  id="rotation-control"
-                  type="range"
-                  [min]="minRotation"
-                  [max]="maxRotation"
-                  step="0.1"
-                  [value]="currentRotation()"
-                  (input)="onRotationChange($event)"
-                />
-              </label>
-              <div class="quick-actions" aria-label="Rotation controls">
-                <button class="ghost-button" type="button" (click)="rotateBy(-5)">-5°</button>
-                <button class="ghost-button" type="button" (click)="rotateBy(5)">+5°</button>
-                <button class="ghost-button" type="button" (click)="rotateBy(-90)">Left</button>
-                <button class="ghost-button" type="button" (click)="rotateBy(90)">Right</button>
-              </div>
-            </div>
+                <strong>{{ formatRotationValue(currentRotation()) }}</strong>
+              </span>
+              <input
+                id="rotation-control"
+                type="range"
+                [min]="minRotation"
+                [max]="maxRotation"
+                step="0.1"
+                [value]="currentRotation()"
+                (input)="onRotationChange($event)"
+              />
+            </label>
+          </div>
+          <div class="flex flex-row justify-end w-full gap-2" aria-label="Rotation controls">
+            <button class="ghost-button" type="button" (click)="rotateBy(-5)">-5°</button>
+            <button class="ghost-button" type="button" (click)="rotateBy(5)">+5°</button>
           </div>
         </div>
       } @else {

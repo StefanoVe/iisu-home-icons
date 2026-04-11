@@ -197,6 +197,14 @@ export class App {
     this.resetEditor();
   }
 
+  protected formatZoomValue(value: number): string {
+    return `${value.toFixed(2)}x`;
+  }
+
+  protected formatRotationValue(value: number): string {
+    return `${Math.round(value)}deg`;
+  }
+
   private resetEditor(): void {
     this.zoom.set(DEFAULT_ZOOM);
     this.rotation.set(DEFAULT_ROTATION);
