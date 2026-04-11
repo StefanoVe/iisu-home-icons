@@ -84,10 +84,12 @@ import { CROP_VIEW_SIZE } from '../../../shared/constants';
     .crop-frame {
       z-index: 3;
       border-radius: 32px;
+      border: 2px solid rgba(255, 255, 255, 0.92);
       box-shadow:
-        inset 0 0 0 14px rgba(255, 255, 255, 0.72),
-        inset 0 0 36px rgba(255, 255, 255, 0.4),
-        inset 0 0 0 1px rgba(255, 255, 255, 0.92);
+        inset 0 0 24px rgba(255, 255, 255, 0.3),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.92),
+        0 4px 16px rgba(27, 148, 234, 0.1);
+      background: none;
     }
   `,
 })
