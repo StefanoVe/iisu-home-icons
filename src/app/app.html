@@ -10,21 +10,81 @@
   <section class="workspace" aria-label="Image mask editor">
     <article class="panel panel-editor">
       <div class="panel-header">
-        <h2>1. Upload</h2>
+        <h2>1. Source</h2>
         @if (hasImage()) {
           <button class="ghost-button" type="button" (click)="resetCrop()">Reset</button>
         }
       </div>
 
-      <label class="upload-card" for="image-upload">
-        <input
-          id="image-upload"
-          type="file"
-          accept="image/png,image/jpeg,image/webp,image/gif"
-          (change)="onFileSelected($event)"
-        />
-        <span class="upload-title">Open image</span>
-      </label>
+      <div class="source-toggle" aria-label="Image source">
+        <button
+          class="toggle-button"
+          type="button"
+          [attr.aria-pressed]="currentImageSourceMode() === 'upload'"
+          (click)="setImageSourceMode('upload')"
+        >
+          Upload
+        </button>
+        <button
+          class="toggle-button disabled:opacity-50"
+          type="button"
+          disabled
+          [attr.aria-pressed]="currentImageSourceMode() === 'search'"
+          (click)="setImageSourceMode('search')"
+        >
+          Search <small>(coming soon)</small>
+        </button>
+      </div>
+
+      @if (currentImageSourceMode() === 'upload') {
+        <label class="upload-card" for="image-upload">
+          <input
+            id="image-upload"
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            (change)="onFileSelected($event)"
+          />
+          <span class="upload-title">Open image</span>
+        </label>
+      } @else {
+        <form class="search-box" (submit)="submitSearch($event)">
+          <label class="search-field" for="image-search">
+            <span class="sr-only">Search images</span>
+            <input
+              id="image-search"
+              type="search"
+              placeholder="Search game background"
+              [value]="currentSearchQuery()"
+              (input)="onSearchQueryInput($event)"
+            />
+          </label>
+          <button class="primary-button search-button" type="submit" [disabled]="isSearchLoading()">
+            {{ isSearchLoading() ? 'Searching...' : 'Search' }}
+          </button>
+        </form>
+        <p class="search-feedback">Search prefers wallpapers and backgrounds.</p>
+
+        @if (currentSearchError(); as searchError) {
+          <p class="search-feedback" aria-live="polite">{{ searchError }}</p>
+        }
+
+        @if (currentSearchResults().length) {
+          <div class="search-results" aria-label="Search results">
+            @for (result of currentSearchResults(); track result.id) {
+              <button
+                class="search-result"
+                type="button"
+                [attr.aria-pressed]="currentSelectedSearchId() === result.id"
+                (click)="useSearchResult(result)"
+              >
+                <img [src]="result.thumbnailUrl" [alt]="result.title" />
+                <span>{{ result.title }}</span>
+                <small>{{ result.source }}</small>
+              </button>
+            }
+          </div>
+        }
+      }
 
       @if (hasImage()) {
         <div class="crop-section">

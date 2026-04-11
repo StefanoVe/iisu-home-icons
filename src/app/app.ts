@@ -7,6 +7,18 @@ type LoadedImage = {
   width: number;
 };
 
+type ImageSourceMode = 'upload' | 'search';
+
+type SearchResult = {
+  id: string;
+  height?: number;
+  source: 'openverse' | 'wikimedia';
+  thumbnailUrl: string;
+  title: string;
+  imageUrl: string;
+  width?: number;
+};
+
 type DragState = {
   originPointerX: number;
   originPointerY: number;
@@ -29,6 +41,9 @@ const DEFAULT_GLOW_STRENGTH = 0.22;
 const MIN_ROTATION = -180;
 const MAX_ROTATION = 180;
 const DEFAULT_ROTATION = 0;
+const OPENVERSE_SEARCH_ENDPOINT = 'https://api.openverse.org/v1/images/';
+const WIKIMEDIA_SEARCH_ENDPOINT =
+  'https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrlimit=8&prop=imageinfo&iiprop=url&iiurlwidth=320&format=json&origin=*';
 
 @Component({
   selector: 'app-root',
@@ -52,19 +67,31 @@ export class App {
   private readonly dragState = signal<DragState | null>(null);
   private readonly imageElement = signal<HTMLImageElement | null>(null);
   private readonly image = signal<LoadedImage | null>(null);
+  private readonly imageSourceMode = signal<ImageSourceMode>('upload');
   private readonly offsetX = signal(0);
   private readonly offsetY = signal(0);
   private readonly outputUrl = signal<string | null>(null);
+  private readonly searchError = signal<string | null>(null);
+  private readonly searchLoading = signal(false);
+  private readonly searchQuery = signal('');
+  private readonly searchResults = signal<SearchResult[]>([]);
+  private readonly selectedSearchId = signal<string | null>(null);
   private readonly zoom = signal(DEFAULT_ZOOM);
   private readonly rotation = signal(DEFAULT_ROTATION);
   private readonly showGrid = signal(true);
 
   protected readonly isDragging = computed(() => this.dragState() !== null);
   protected readonly hasImage = computed(() => this.image() !== null);
+  protected readonly currentImageSourceMode = this.imageSourceMode.asReadonly();
   protected readonly currentImage = this.image.asReadonly();
   protected readonly currentOffsetX = this.offsetX.asReadonly();
   protected readonly currentOffsetY = this.offsetY.asReadonly();
   protected readonly currentOutputUrl = this.outputUrl.asReadonly();
+  protected readonly currentSearchError = this.searchError.asReadonly();
+  protected readonly isSearchLoading = this.searchLoading.asReadonly();
+  protected readonly currentSearchQuery = this.searchQuery.asReadonly();
+  protected readonly currentSearchResults = this.searchResults.asReadonly();
+  protected readonly currentSelectedSearchId = this.selectedSearchId.asReadonly();
   protected readonly currentZoom = this.zoom.asReadonly();
   protected readonly currentRotation = this.rotation.asReadonly();
   protected readonly isGridVisible = this.showGrid.asReadonly();
@@ -127,6 +154,64 @@ export class App {
     } finally {
       if (input) {
         input.value = '';
+      }
+    }
+  }
+
+  protected setImageSourceMode(mode: ImageSourceMode): void {
+    this.imageSourceMode.set(mode);
+  }
+
+  protected onSearchQueryInput(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    this.searchQuery.set(input?.value ?? '');
+  }
+
+  protected async submitSearch(event?: Event): Promise<void> {
+    event?.preventDefault();
+
+    const query = this.searchQuery().trim();
+    if (!query) {
+      this.searchResults.set([]);
+      this.searchError.set('Type a search term.');
+      return;
+    }
+
+    this.searchLoading.set(true);
+    this.searchError.set(null);
+
+    try {
+      const searchTerm = this.buildBackgroundSearchQuery(query);
+      const [openverseResults, wikimediaResults] = await Promise.all([
+        this.searchOpenverse(searchTerm),
+        this.searchWikimedia(searchTerm),
+      ]);
+      const results = [...openverseResults, ...wikimediaResults].sort((left, right) => {
+        return this.scoreSearchResult(right) - this.scoreSearchResult(left);
+      });
+
+      this.searchResults.set(results);
+      this.searchError.set(results.length ? null : 'No results.');
+    } catch {
+      this.searchResults.set([]);
+      this.searchError.set('Search unavailable.');
+    } finally {
+      this.searchLoading.set(false);
+    }
+  }
+
+  protected async useSearchResult(result: SearchResult): Promise<void> {
+    this.selectedSearchId.set(result.id);
+    this.searchError.set(null);
+
+    try {
+      await this.loadRemoteImage(result.imageUrl, result.title);
+    } catch {
+      try {
+        await this.loadRemoteImage(result.thumbnailUrl, result.title);
+      } catch {
+        this.searchError.set('Image could not be loaded.');
+        this.selectedSearchId.set(null);
       }
     }
   }
@@ -261,6 +346,7 @@ export class App {
 
   private async loadImageElement(sourceUrl: string): Promise<HTMLImageElement> {
     const imageElement = new window.Image();
+    imageElement.crossOrigin = 'anonymous';
 
     await new Promise<void>((resolve, reject) => {
       imageElement.addEventListener('load', () => resolve(), { once: true });
@@ -271,6 +357,130 @@ export class App {
     });
 
     return imageElement;
+  }
+
+  private async loadRemoteImage(sourceUrl: string, imageName: string): Promise<void> {
+    const response = await fetch(sourceUrl);
+    if (!response.ok) {
+      throw new Error('Remote image failed to load');
+    }
+
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+
+    try {
+      const imageElement = await this.loadImageElement(objectUrl);
+      this.revokeCurrentImageUrl();
+
+      this.imageElement.set(imageElement);
+      this.image.set({
+        height: imageElement.naturalHeight,
+        name: this.slugifyImageName(imageName),
+        sourceUrl: objectUrl,
+        width: imageElement.naturalWidth,
+      });
+      this.resetEditor();
+    } catch (error) {
+      URL.revokeObjectURL(objectUrl);
+      throw error;
+    }
+  }
+
+  private slugifyImageName(value: string): string {
+    const normalized = value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    return normalized || 'iisu-community-icon';
+  }
+
+  private buildBackgroundSearchQuery(query: string): string {
+    return `${query} wallpaper background`;
+  }
+
+  private scoreSearchResult(result: SearchResult): number {
+    const width = result.width ?? 0;
+    const height = result.height ?? 0;
+    const areaScore = width * height;
+    const landscapeBonus = width > height ? 250000 : 0;
+    const sourceBonus = result.source === 'wikimedia' ? 50000 : 0;
+
+    return areaScore + landscapeBonus + sourceBonus;
+  }
+
+  private async searchOpenverse(query: string): Promise<SearchResult[]> {
+    const url = new URL(OPENVERSE_SEARCH_ENDPOINT);
+    url.searchParams.set('q', query);
+    url.searchParams.set('page_size', '8');
+
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+      return [];
+    }
+
+    const payload = (await response.json()) as {
+      results?: Array<{
+        height?: number;
+        id?: string;
+        title?: string;
+        thumbnail?: string;
+        url?: string;
+        width?: number;
+      }>;
+    };
+
+    return (payload.results ?? [])
+      .filter((item) => item.thumbnail && item.url)
+      .map((item, index) => ({
+        height: item.height,
+        id: item.id ?? `openverse-${index}`,
+        imageUrl: item.url ?? '',
+        source: 'openverse',
+        thumbnailUrl: item.thumbnail ?? '',
+        title: item.title?.trim() || `Openverse ${index + 1}`,
+        width: item.width,
+      }));
+  }
+
+  private async searchWikimedia(query: string): Promise<SearchResult[]> {
+    const url = new URL(WIKIMEDIA_SEARCH_ENDPOINT);
+    url.searchParams.set('gsrsearch', query);
+
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+      return [];
+    }
+
+    const payload = (await response.json()) as {
+      query?: {
+        pages?: Record<
+          string,
+          {
+            imageinfo?: Array<{
+              height?: number;
+              thumburl?: string;
+              url?: string;
+              width?: number;
+            }>;
+            pageid?: number;
+            title?: string;
+          }
+        >;
+      };
+    };
+
+    return Object.values(payload.query?.pages ?? {})
+      .filter((item) => item.imageinfo?.[0]?.thumburl && item.imageinfo?.[0]?.url)
+      .map((item, index) => ({
+        height: item.imageinfo?.[0]?.height,
+        id: `wikimedia-${item.pageid ?? index}`,
+        imageUrl: item.imageinfo?.[0]?.url ?? '',
+        source: 'wikimedia',
+        thumbnailUrl: item.imageinfo?.[0]?.thumburl ?? '',
+        title: item.title?.replace(/^File:/, '').trim() || `Wikimedia ${index + 1}`,
+        width: item.imageinfo?.[0]?.width,
+      }));
   }
 
   private revokeCurrentImageUrl(): void {
