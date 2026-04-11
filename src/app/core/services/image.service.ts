@@ -18,7 +18,10 @@ export class ImageService {
     return imageElement;
   }
 
-  async loadRemoteImage(sourceUrl: string, imageName: string): Promise<{ element: HTMLImageElement; image: LoadedImage }> {
+  async loadRemoteImage(
+    sourceUrl: string,
+    imageName: string,
+  ): Promise<{ element: HTMLImageElement; image: LoadedImage }> {
     const response = await fetch(sourceUrl);
     if (!response.ok) {
       throw new Error('Remote image failed to load');
@@ -45,7 +48,9 @@ export class ImageService {
     }
   }
 
-  loadFileImage(file: File): Promise<{ element: HTMLImageElement; image: LoadedImage; objectUrl: string }> {
+  loadFileImage(
+    file: File,
+  ): Promise<{ element: HTMLImageElement; image: LoadedImage; objectUrl: string }> {
     const objectUrl = URL.createObjectURL(file);
 
     return this.loadImageElement(objectUrl)

@@ -1,6 +1,10 @@
 import { Injectable } from '@angular/core';
+import {
+  OPENVERSE_SEARCH_ENDPOINT,
+  SEARCH_PAGE_SIZE,
+  WIKIMEDIA_SEARCH_ENDPOINT,
+} from '../../shared/constants';
 import { SearchResult } from '../types';
-import { OPENVERSE_SEARCH_ENDPOINT, SEARCH_PAGE_SIZE, WIKIMEDIA_SEARCH_ENDPOINT } from '../../shared/constants';
 
 @Injectable({ providedIn: 'root' })
 export class SearchService {

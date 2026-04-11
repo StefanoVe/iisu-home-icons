@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { LoadedImage, CropMetrics } from '../../../core/types';
+import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { CropMetrics, LoadedImage } from '../../../core/types';
 import { CROP_VIEW_SIZE } from '../../../shared/constants';
 
 @Component({
@@ -16,11 +16,7 @@ import { CROP_VIEW_SIZE } from '../../../shared/constants';
       role="application"
       aria-label="Square crop area"
     >
-      <div
-        class="crop-grid"
-        [class.crop-grid-hidden]="!showGrid()"
-        aria-hidden="true"
-      ></div>
+      <div class="crop-grid" [class.crop-grid-hidden]="!showGrid()" aria-hidden="true"></div>
       <img
         [src]="currentImage()?.sourceUrl"
         alt="Preview of the image being cropped"
@@ -97,7 +93,12 @@ import { CROP_VIEW_SIZE } from '../../../shared/constants';
 })
 export class CropStageComponent {
   currentImage = input<LoadedImage | null>(null);
-  cropMetrics = input<CropMetrics>({ displayHeight: 0, displayWidth: 0, maxOffsetX: 0, maxOffsetY: 0 });
+  cropMetrics = input<CropMetrics>({
+    displayHeight: 0,
+    displayWidth: 0,
+    maxOffsetX: 0,
+    maxOffsetY: 0,
+  });
   offsetX = input(0);
   offsetY = input(0);
   rotation = input(0);
