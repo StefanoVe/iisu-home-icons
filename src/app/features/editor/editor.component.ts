@@ -95,9 +95,7 @@ import { OutputPanelComponent } from './components/output-panel.component';
   `,
   styles: `
     :host {
-      display: grid;
-      gap: 18px;
-      grid-template-columns: minmax(0, 1.12fr) minmax(300px, 0.88fr);
+      display: contents;
     }
 
     .panel {
