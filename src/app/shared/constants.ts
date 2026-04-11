@@ -1,15 +1,15 @@
 // Layout
 export const CROP_VIEW_SIZE = 320;
 export const OUTPUT_SIZE = 512;
-export const FRAME_PADDING = 24;
+export const FRAME_PADDING = 0;
 export const FRAME_RADIUS = 50;
-export const INNER_PADDING = 18;
+export const INNER_PADDING = 26;
 export const INNER_RADIUS = 38;
 
 // Zoom
 export const MIN_ZOOM = 1;
 export const MAX_ZOOM = 3;
-export const DEFAULT_ZOOM = 1.18;
+export const DEFAULT_ZOOM = 1;
 
 // Rotation
 export const MIN_ROTATION = -180;
