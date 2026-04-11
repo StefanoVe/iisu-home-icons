@@ -18,6 +18,7 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Hello, iisu-home-icons');
+    expect(compiled.querySelector('h1')?.textContent).toContain('iiSU Home Icon Mask Tool');
+    expect(compiled.textContent).toContain('Community Project');
   });
 });
