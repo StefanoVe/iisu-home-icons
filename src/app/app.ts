@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
 
 type LoadedImage = {
   height: number;
@@ -29,6 +24,11 @@ const INNER_RADIUS = 38;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 3;
 const DEFAULT_ZOOM = 1.18;
+const DEFAULT_FADE_STRENGTH = 0.28;
+const DEFAULT_GLOW_STRENGTH = 0.22;
+const MIN_ROTATION = -180;
+const MAX_ROTATION = 180;
+const DEFAULT_ROTATION = 0;
 
 @Component({
   selector: 'app-root',
@@ -46,6 +46,8 @@ export class App {
   protected readonly maxZoom = MAX_ZOOM;
   protected readonly minZoom = MIN_ZOOM;
   protected readonly projectName = 'iiSU Home Icon Mask Tool';
+  protected readonly minRotation = MIN_ROTATION;
+  protected readonly maxRotation = MAX_ROTATION;
 
   private readonly dragState = signal<DragState | null>(null);
   private readonly imageElement = signal<HTMLImageElement | null>(null);
@@ -54,6 +56,8 @@ export class App {
   private readonly offsetY = signal(0);
   private readonly outputUrl = signal<string | null>(null);
   private readonly zoom = signal(DEFAULT_ZOOM);
+  private readonly rotation = signal(DEFAULT_ROTATION);
+  private readonly showGrid = signal(true);
 
   protected readonly isDragging = computed(() => this.dragState() !== null);
   protected readonly hasImage = computed(() => this.image() !== null);
@@ -62,6 +66,8 @@ export class App {
   protected readonly currentOffsetY = this.offsetY.asReadonly();
   protected readonly currentOutputUrl = this.outputUrl.asReadonly();
   protected readonly currentZoom = this.zoom.asReadonly();
+  protected readonly currentRotation = this.rotation.asReadonly();
+  protected readonly isGridVisible = this.showGrid.asReadonly();
 
   protected readonly cropMetrics = computed(() => {
     const image = this.image();
@@ -74,18 +80,22 @@ export class App {
       };
     }
 
-    const coverScale = Math.max(
-      CROP_VIEW_SIZE / image.width,
-      CROP_VIEW_SIZE / image.height,
-    );
+    const coverScale = Math.max(CROP_VIEW_SIZE / image.width, CROP_VIEW_SIZE / image.height);
     const scaledWidth = image.width * coverScale * this.zoom();
     const scaledHeight = image.height * coverScale * this.zoom();
+    const rotationRadians = this.toRadians(this.rotation());
+    const boundingWidth =
+      Math.abs(scaledWidth * Math.cos(rotationRadians)) +
+      Math.abs(scaledHeight * Math.sin(rotationRadians));
+    const boundingHeight =
+      Math.abs(scaledWidth * Math.sin(rotationRadians)) +
+      Math.abs(scaledHeight * Math.cos(rotationRadians));
 
     return {
       displayHeight: scaledHeight,
       displayWidth: scaledWidth,
-      maxOffsetX: Math.max(0, (scaledWidth - CROP_VIEW_SIZE) / 2),
-      maxOffsetY: Math.max(0, (scaledHeight - CROP_VIEW_SIZE) / 2),
+      maxOffsetX: Math.max(0, (boundingWidth - CROP_VIEW_SIZE) / 2),
+      maxOffsetY: Math.max(0, (boundingHeight - CROP_VIEW_SIZE) / 2),
     };
   });
 
@@ -111,9 +121,7 @@ export class App {
         width: imageElement.naturalWidth,
       });
       this.zoom.set(DEFAULT_ZOOM);
-      this.offsetX.set(0);
-      this.offsetY.set(0);
-      this.renderOutput();
+      this.resetEditor();
     } catch {
       URL.revokeObjectURL(objectUrl);
     } finally {
@@ -124,11 +132,26 @@ export class App {
   }
 
   protected onZoomChange(event: Event): void {
-    const input = event.target as HTMLInputElement | null;
-    const nextZoom = Number(input?.value ?? DEFAULT_ZOOM);
-    this.zoom.set(nextZoom);
+    this.updateRangeValue(event, this.zoom, DEFAULT_ZOOM);
     this.clampOffsets();
     this.renderOutput();
+  }
+
+  protected onRotationChange(event: Event): void {
+    this.updateRangeValue(event, this.rotation, DEFAULT_ROTATION);
+    this.clampOffsets();
+    this.renderOutput();
+  }
+
+  protected rotateBy(delta: number): void {
+    const nextRotation = this.clamp(this.rotation() + delta, MIN_ROTATION, MAX_ROTATION);
+    this.rotation.set(nextRotation);
+    this.clampOffsets();
+    this.renderOutput();
+  }
+
+  protected toggleGrid(): void {
+    this.showGrid.update((value) => !value);
   }
 
   protected onPointerDown(event: PointerEvent): void {
@@ -171,7 +194,13 @@ export class App {
   }
 
   protected resetCrop(): void {
+    this.resetEditor();
+  }
+
+  private resetEditor(): void {
     this.zoom.set(DEFAULT_ZOOM);
+    this.rotation.set(DEFAULT_ROTATION);
+    this.showGrid.set(true);
     this.offsetX.set(0);
     this.offsetY.set(0);
     this.renderOutput();
@@ -209,16 +238,27 @@ export class App {
     return Math.min(Math.max(value, min), max);
   }
 
+  private toRadians(value: number): number {
+    return (value * Math.PI) / 180;
+  }
+
+  private updateRangeValue(
+    event: Event,
+    target: { set(value: number): void },
+    fallback: number,
+  ): void {
+    const input = event.target as HTMLInputElement | null;
+    target.set(Number(input?.value ?? fallback));
+  }
+
   private async loadImageElement(sourceUrl: string): Promise<HTMLImageElement> {
     const imageElement = new window.Image();
 
     await new Promise<void>((resolve, reject) => {
       imageElement.addEventListener('load', () => resolve(), { once: true });
-      imageElement.addEventListener(
-        'error',
-        () => reject(new Error('Image loading failed')),
-        { once: true },
-      );
+      imageElement.addEventListener('error', () => reject(new Error('Image loading failed')), {
+        once: true,
+      });
       imageElement.src = sourceUrl;
     });
 
@@ -255,17 +295,18 @@ export class App {
     const outerSize = OUTPUT_SIZE - outerInset * 2;
     const innerInset = outerInset + INNER_PADDING;
     const innerSize = OUTPUT_SIZE - innerInset * 2;
+    const rotationRadians = this.toRadians(this.rotation());
     const coverScale = Math.max(innerSize / image.width, innerSize / image.height);
     const drawWidth = image.width * coverScale * this.zoom();
     const drawHeight = image.height * coverScale * this.zoom();
     const offsetScale = innerSize / CROP_VIEW_SIZE;
-    const x = innerInset + innerSize / 2 - drawWidth / 2 + this.offsetX() * offsetScale;
-    const y = innerInset + innerSize / 2 - drawHeight / 2 + this.offsetY() * offsetScale;
+    const centerX = innerInset + innerSize / 2 + this.offsetX() * offsetScale;
+    const centerY = innerInset + innerSize / 2 + this.offsetY() * offsetScale;
 
     context.clearRect(0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
     this.drawRoundedRect(context, outerInset, outerInset, outerSize, outerSize, FRAME_RADIUS);
     context.save();
-    context.shadowColor = 'rgba(28, 73, 136, 0.22)';
+    context.shadowColor = `rgba(28, 73, 136, ${DEFAULT_GLOW_STRENGTH})`;
     context.shadowBlur = 30;
     context.shadowOffsetY = 12;
     context.fillStyle = '#ffffff';
@@ -277,8 +318,12 @@ export class App {
     context.clip();
     context.fillStyle = '#ffffff';
     context.fillRect(innerInset, innerInset, innerSize, innerSize);
-    context.drawImage(imageElement, x, y, drawWidth, drawHeight);
-    this.drawEdgeFade(context, innerInset, innerInset, innerSize, innerSize);
+    context.save();
+    context.translate(centerX, centerY);
+    context.rotate(rotationRadians);
+    context.drawImage(imageElement, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+    context.restore();
+    this.drawEdgeFade(context, innerInset, innerInset, innerSize, innerSize, DEFAULT_FADE_STRENGTH);
     context.restore();
 
     context.save();
@@ -291,7 +336,14 @@ export class App {
     context.save();
     context.strokeStyle = 'rgba(189, 219, 255, 0.55)';
     context.lineWidth = 2;
-    this.drawRoundedRect(context, outerInset + 2, outerInset + 2, outerSize - 4, outerSize - 4, FRAME_RADIUS - 2);
+    this.drawRoundedRect(
+      context,
+      outerInset + 2,
+      outerInset + 2,
+      outerSize - 4,
+      outerSize - 4,
+      FRAME_RADIUS - 2,
+    );
     context.stroke();
     context.restore();
 
@@ -304,6 +356,7 @@ export class App {
     y: number,
     width: number,
     height: number,
+    opacity: number,
   ): void {
     const fadeSize = 32;
 
@@ -327,7 +380,7 @@ export class App {
     ];
 
     for (const item of gradients) {
-      item.gradient.addColorStop(0, 'rgba(255, 255, 255, 0.28)');
+      item.gradient.addColorStop(0, `rgba(255, 255, 255, ${opacity})`);
       item.gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
       context.fillStyle = item.gradient;
       context.fillRect(item.rect[0], item.rect[1], item.rect[2], item.rect[3]);

@@ -6,7 +6,8 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "deploy": "ng build --configuration production && tar -czf dist/deploy.tar captain-definition -C dist iisu-home-icons && echo 'Deployment package created at dist/deploy.tar' && caprover deploy -t dist/deploy.tar -n notify -a iisu-home-mask && rm dist/deploy.tar && echo 'Deployment package removed after deployment'"
   },
   "private": true,
   "packageManager": "bun@1.2.16",

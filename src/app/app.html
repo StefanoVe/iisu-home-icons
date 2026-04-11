@@ -1,34 +1,18 @@
 <main class="page-shell">
   <section class="hero">
-    <div class="hero-copy">
-      <p class="eyebrow">Community Project</p>
+    <div>
       <h1>{{ projectName }}</h1>
-      <p class="lede">
-        Upload any image, crop it to a 1:1 format, and download a polished
-        version with a soft white frame and a gentle edge fade.
-      </p>
     </div>
 
-    <aside class="hero-note" aria-label="Project disclaimer">
-      <p class="note-title">Fan-made utility</p>
-      <p>
-        This project is made by the community and is not affiliated with,
-        endorsed by, or sponsored by iiSU.
-      </p>
-    </aside>
+    <p class="hero-note">Unofficial. Not affiliated with iiSU.</p>
   </section>
 
   <section class="workspace" aria-label="Image mask editor">
     <article class="panel panel-editor">
       <div class="panel-header">
-        <div>
-          <p class="panel-kicker">Step 1</p>
-          <h2>Upload and crop</h2>
-        </div>
+        <h2>1. Upload</h2>
         @if (hasImage()) {
-          <button class="ghost-button" type="button" (click)="resetCrop()">
-            Reset
-          </button>
+          <button class="ghost-button" type="button" (click)="resetCrop()">Reset</button>
         }
       </div>
 
@@ -39,17 +23,16 @@
           accept="image/png,image/jpeg,image/webp,image/gif"
           (change)="onFileSelected($event)"
         />
-        <span class="upload-title">Choose an image</span>
-        <span class="upload-subtitle">
-          PNG, JPG, WEBP, or GIF. The crop always stays 1:1.
-        </span>
+        <span class="upload-title">Open image</span>
       </label>
 
       @if (hasImage()) {
         <div class="crop-section">
-          <div class="crop-header">
-            <p class="panel-kicker">Step 2</p>
-            <p class="microcopy">Drag the image to reposition it.</p>
+          <div class="panel-header panel-header-compact">
+            <h2>2. Edit</h2>
+            <button class="ghost-button" type="button" (click)="toggleGrid()">
+              {{ isGridVisible() ? 'Hide grid' : 'Show grid' }}
+            </button>
           </div>
 
           <div
@@ -59,7 +42,11 @@
             role="application"
             aria-label="Square crop area"
           >
-            <div class="crop-grid" aria-hidden="true"></div>
+            <div
+              class="crop-grid"
+              [class.crop-grid-hidden]="!isGridVisible()"
+              aria-hidden="true"
+            ></div>
             <img
               [src]="currentImage()?.sourceUrl"
               alt="Preview of the image being cropped"
@@ -68,36 +55,59 @@
               [style.height.px]="cropMetrics().displayHeight"
               [style.left.px]="cropSize / 2 + currentOffsetX()"
               [style.top.px]="cropSize / 2 + currentOffsetY()"
+              [style.transform]="'translate(-50%, -50%) rotate(' + currentRotation() + 'deg)'"
             />
             <div class="crop-frame" aria-hidden="true"></div>
           </div>
 
-          <label class="slider-field" for="zoom-control">
-            <span>Zoom</span>
-            <input
-              id="zoom-control"
-              type="range"
-              [min]="minZoom"
-              [max]="maxZoom"
-              step="0.01"
-              [value]="currentZoom()"
-              (input)="onZoomChange($event)"
-            />
-          </label>
+          <div class="flex w-full items-start justify-stretch gap-10">
+            <div class="w-full">
+              <label class="slider-field" for="zoom-control">
+                <span>Zoom</span>
+                <input
+                  id="zoom-control"
+                  type="range"
+                  [min]="minZoom"
+                  [max]="maxZoom"
+                  step="0.01"
+                  class="w-full"
+                  [value]="currentZoom()"
+                  (input)="onZoomChange($event)"
+                />
+              </label>
+            </div>
+            <div class="flex flex-col w-full">
+              <label class="slider-field" for="rotation-control">
+                <span>Rotate</span>
+                <input
+                  id="rotation-control"
+                  type="range"
+                  [min]="minRotation"
+                  [max]="maxRotation"
+                  step="0.1"
+                  [value]="currentRotation()"
+                  (input)="onRotationChange($event)"
+                />
+              </label>
+              <div class="quick-actions" aria-label="Rotation controls">
+                <button class="ghost-button" type="button" (click)="rotateBy(-5)">-5°</button>
+                <button class="ghost-button" type="button" (click)="rotateBy(5)">+5°</button>
+                <button class="ghost-button" type="button" (click)="rotateBy(-90)">Left</button>
+                <button class="ghost-button" type="button" (click)="rotateBy(90)">Right</button>
+              </div>
+            </div>
+          </div>
         </div>
       } @else {
         <div class="empty-state" aria-live="polite">
-          <p>The crop preview will appear here after you choose a file.</p>
+          <p>No image.</p>
         </div>
       }
     </article>
 
     <article class="panel panel-output">
       <div class="panel-header">
-        <div>
-          <p class="panel-kicker">Step 3</p>
-          <h2>Masked output</h2>
-        </div>
+        <h2>3. Export</h2>
       </div>
 
       <div class="result-stage">
@@ -111,7 +121,7 @@
           />
         } @else {
           <div class="result-placeholder" aria-live="polite">
-            <p>The final preview will appear here.</p>
+            <p>No preview.</p>
           </div>
         }
       </div>
@@ -125,9 +135,6 @@
         >
           Download PNG
         </button>
-        <p class="microcopy">
-          Square output with a white base, soft frame, and luminous border.
-        </p>
       </div>
     </article>
   </section>
