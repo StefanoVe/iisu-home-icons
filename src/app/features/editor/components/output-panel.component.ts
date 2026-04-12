@@ -168,6 +168,8 @@ const EXPORT_SIZES = [64, 128, 256, 512, 1024] as const;
       cursor: pointer;
       transition: all 0.2s ease;
       font-size: 0.85rem;
+      padding: 4px;
+      border-radius: 8px;
     }
 
     .size-select:hover {
