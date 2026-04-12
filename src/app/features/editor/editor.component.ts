@@ -97,7 +97,7 @@ import { SourcePanelComponent } from './components/source-panel.component';
       <app-output-panel
         [outputUrl]="outputUrl()"
         [currentImage]="image()"
-        (downloadClick)="downloadResult()"
+        (downloadClick)="downloadResult($event)"
       ></app-output-panel>
     </article>
   `,
@@ -381,7 +381,7 @@ export class EditorComponent {
     this.resetEditor();
   }
 
-  protected downloadResult(): void {
+  protected downloadResult(exportSize: number): void {
     const url = this.outputUrl();
     if (!url) {
       return;
@@ -389,8 +389,27 @@ export class EditorComponent {
 
     const link = document.createElement('a');
     const imageName = this.image()?.name ?? 'iisu-community-icon';
-    link.href = url;
-    link.download = `${imageName}-masked.png`;
+
+    // If exporting at non-standard size, re-render at that size
+    if (exportSize !== 512) {
+      const resizedUrl = this.canvasRenderService.renderOutput(
+        this.image(),
+        this.imageElement(),
+        this.zoom(),
+        this.rotation(),
+        this.offsetX(),
+        this.offsetY(),
+        this.shadowBlur(),
+        this.shadowColorAuto() ? 'auto' : this.shadowColor(),
+        exportSize,
+      );
+      if (!resizedUrl) return;
+      link.href = resizedUrl;
+    } else {
+      link.href = url;
+    }
+
+    link.download = `${imageName}-masked-${exportSize}.png`;
     link.click();
   }
 
