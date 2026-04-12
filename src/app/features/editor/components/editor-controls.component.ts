@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
-import { MIN_SHADOW_BLUR, MAX_SHADOW_BLUR } from '../../../shared/constants';
+import { MAX_SHADOW_BLUR, MIN_SHADOW_BLUR } from '../../../shared/constants';
 
 @Component({
   selector: 'app-editor-controls',
@@ -31,14 +31,15 @@ import { MIN_SHADOW_BLUR, MAX_SHADOW_BLUR } from '../../../shared/constants';
       </button>
     </div>
 
-    <div class="tool-grid">
-      <label class="slider-field" for="zoom-control">
+    <div class="tool-grid flex items-center justify-stretch w-full">
+      <label class="slider-field w-full" for="zoom-control">
         <span class="field-header">
           <span>Zoom</span>
           <strong>{{ formatZoom(currentZoom()) }}</strong>
         </span>
         <input
           id="zoom-control"
+          class="w-full"
           type="range"
           [min]="minZoom()"
           [max]="maxZoom()"
@@ -47,28 +48,59 @@ import { MIN_SHADOW_BLUR, MAX_SHADOW_BLUR } from '../../../shared/constants';
           (input)="onZoomChange($event)"
         />
       </label>
+    </div>
 
-      <label class="slider-field" for="rotation-control">
-        <span class="field-header">
-          <span>Rotate</span>
-          <strong>{{ formatRotation(currentRotation()) }}</strong>
-        </span>
-        <input
-          id="rotation-control"
-          type="range"
-          [min]="minRotation()"
-          [max]="maxRotation()"
-          step="0.1"
-          [value]="currentRotation()"
-          (input)="onRotationChange($event)"
+    <!-- Rotation Settings -->
+    <button
+      class="advanced-toggle"
+      type="button"
+      (click)="toggleAdvancedRotation()"
+      [attr.aria-expanded]="rotationAdvancedOpen()"
+      aria-label="Toggle rotation settings"
+    >
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M8 12h8M8 12l4-4m-4 4l4 4"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          [attr.transform]="rotationAdvancedOpen() ? 'rotate(90 12 12)' : 'rotate(0 12 12)'"
         />
-      </label>
-    </div>
+      </svg>
+      <span>Rotation</span>
+    </button>
 
-    <div class="flex flex-row justify-end w-full gap-2" aria-label="Rotation controls">
-      <button class="ghost-button" type="button" (click)="onRotateBy(-5)">-5°</button>
-      <button class="ghost-button" type="button" (click)="onRotateBy(5)">+5°</button>
-    </div>
+    @if (rotationAdvancedOpen()) {
+      <div class="advanced-panel">
+        <label class="slider-field" for="rotation-control">
+          <span class="field-header">
+            <span>Angle</span>
+            <strong>{{ formatRotation(currentRotation()) }}</strong>
+          </span>
+          <input
+            id="rotation-control"
+            type="range"
+            [min]="minRotation()"
+            [max]="maxRotation()"
+            step="0.1"
+            [value]="currentRotation()"
+            (input)="onRotationChange($event)"
+          />
+        </label>
+
+        <div class="rotation-quick-buttons">
+          <button class="ghost-button" type="button" (click)="onRotateBy(-5)">-5°</button>
+          <button class="ghost-button" type="button" (click)="onRotateBy(5)">+5°</button>
+        </div>
+      </div>
+    }
 
     <!-- Advanced Shadow Settings -->
     <button
@@ -78,7 +110,13 @@ import { MIN_SHADOW_BLUR, MAX_SHADOW_BLUR } from '../../../shared/constants';
       [attr.aria-expanded]="shadowAdvancedOpen()"
       aria-label="Toggle advanced shadow settings"
     >
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
         <path
           d="M8 12h8M8 12l4-4m-4 4l4 4"
           stroke="currentColor"
@@ -92,7 +130,7 @@ import { MIN_SHADOW_BLUR, MAX_SHADOW_BLUR } from '../../../shared/constants';
     </button>
 
     @if (shadowAdvancedOpen()) {
-      <div class="advanced-shadow-panel">
+      <div class="advanced-panel">
         <label class="slider-field" for="shadow-blur-control">
           <span class="field-header">
             <span>Shadow Blur</span>
@@ -374,7 +412,7 @@ import { MIN_SHADOW_BLUR, MAX_SHADOW_BLUR } from '../../../shared/constants';
       transition: transform 0.2s ease;
     }
 
-    .advanced-shadow-panel {
+    .advanced-panel {
       display: grid;
       gap: 12px;
       margin-top: 12px;
@@ -382,6 +420,12 @@ import { MIN_SHADOW_BLUR, MAX_SHADOW_BLUR } from '../../../shared/constants';
       border-radius: 8px;
       background: rgba(248, 252, 255, 0.6);
       border: 1px solid rgba(44, 167, 242, 0.15);
+    }
+
+    .rotation-quick-buttons {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
     }
 
     .shadow-color-section {
@@ -406,41 +450,86 @@ import { MIN_SHADOW_BLUR, MAX_SHADOW_BLUR } from '../../../shared/constants';
 
     .toggle-label input[type='checkbox'] {
       appearance: none;
-      width: 2rem;
-      height: 1.1rem;
+      flex-shrink: 0;
+      width: 2.4rem;
+      height: 1.3rem;
       border-radius: 999px;
-      background: rgba(139, 189, 236, 0.3);
-      border: 1px solid rgba(44, 167, 242, 0.3);
+      background: linear-gradient(135deg, rgba(139, 189, 236, 0.25), rgba(189, 219, 255, 0.25));
+      border: 1.5px solid rgba(44, 167, 242, 0.4);
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
       position: relative;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.04);
+    }
+
+    .toggle-label input[type='checkbox']:hover {
+      background: linear-gradient(135deg, rgba(139, 189, 236, 0.35), rgba(189, 219, 255, 0.35));
+      border-color: rgba(44, 167, 242, 0.6);
+      box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.04),
+        0 0 12px rgba(44, 167, 242, 0.15);
+    }
+
+    .toggle-label input[type='checkbox']:active {
+      box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.06),
+        0 0 8px rgba(44, 167, 242, 0.1);
     }
 
     .toggle-label input[type='checkbox']:before {
       content: '';
       position: absolute;
-      width: 0.8rem;
-      height: 0.8rem;
+      display: block;
+      width: 0.95rem;
+      height: 0.95rem;
       border-radius: 50%;
       background: #ffffff;
-      top: 0.15rem;
-      left: 0.15rem;
-      transition: left 0.2s ease;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      top: 50%;
+      left: 0.175rem;
+      transform: translateY(-50%);
+      transition:
+        left 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+        box-shadow 0.3s ease;
+      box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.12),
+        0 1px 2px rgba(0, 0, 0, 0.06);
+    }
+
+    .toggle-label input[type='checkbox']:hover:before {
+      box-shadow:
+        0 3px 6px rgba(0, 0, 0, 0.14),
+        0 2px 3px rgba(0, 0, 0, 0.08);
     }
 
     .toggle-label input[type='checkbox']:checked {
-      background: rgba(44, 167, 242, 0.8);
+      background: linear-gradient(135deg, rgba(27, 148, 234, 0.9), rgba(15, 103, 191, 0.85));
       border-color: var(--accent-deep, #0f67bf);
+      box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.08),
+        0 4px 12px rgba(15, 103, 191, 0.25);
+    }
+
+    .toggle-label input[type='checkbox']:checked:hover {
+      background: linear-gradient(135deg, rgba(27, 148, 234, 1), rgba(15, 103, 191, 0.95));
+      box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.08),
+        0 6px 16px rgba(15, 103, 191, 0.32);
     }
 
     .toggle-label input[type='checkbox']:checked:before {
-      left: 0.85rem;
+      left: 1.25rem;
     }
 
     .toggle-label input[type='checkbox']:focus-visible {
-      outline: 3px solid rgba(34, 139, 230, 0.32);
-      outline-offset: 2px;
+      outline: 3px solid rgba(34, 139, 230, 0.4);
+      outline-offset: 3px;
+    }
+
+    .toggle-label input[type='checkbox']:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      background: linear-gradient(135deg, rgba(139, 189, 236, 0.15), rgba(189, 219, 255, 0.15));
+      border-color: rgba(44, 167, 242, 0.2);
     }
 
     .toggle-text {
@@ -480,6 +569,7 @@ import { MIN_SHADOW_BLUR, MAX_SHADOW_BLUR } from '../../../shared/constants';
 export class EditorControlsComponent {
   protected readonly MIN_SHADOW_BLUR = MIN_SHADOW_BLUR;
   protected readonly MAX_SHADOW_BLUR = MAX_SHADOW_BLUR;
+  protected readonly rotationAdvancedOpen = signal(false);
   protected readonly shadowAdvancedOpen = signal(false);
 
   minZoom = input(1);
@@ -527,6 +617,10 @@ export class EditorControlsComponent {
 
   onRotateBy(delta: number): void {
     this.rotateBy.emit(delta);
+  }
+
+  toggleAdvancedRotation(): void {
+    this.rotationAdvancedOpen.update((value) => !value);
   }
 
   toggleAdvancedShadow(): void {
