@@ -2,9 +2,9 @@
 export const CROP_VIEW_SIZE = 320;
 export const OUTPUT_SIZE = 512;
 export const FRAME_PADDING = 0;
+export const INNER_PADDING = 28;
 export const FRAME_RADIUS = 50;
-export const INNER_PADDING = 26;
-export const INNER_RADIUS = 38;
+export const INNER_RADIUS = 33.333;
 
 // Zoom
 export const MIN_ZOOM = 1;

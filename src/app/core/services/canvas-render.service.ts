@@ -1,13 +1,12 @@
 import { Injectable } from '@angular/core';
-import { LoadedImage } from '../types';
 import {
-  OUTPUT_SIZE,
   FRAME_PADDING,
   FRAME_RADIUS,
   INNER_PADDING,
   INNER_RADIUS,
-  DEFAULT_FADE_STRENGTH,
+  OUTPUT_SIZE,
 } from '../../shared/constants';
+import { LoadedImage } from '../types';
 import { MathService } from './math.service';
 
 @Injectable({ providedIn: 'root' })
@@ -71,6 +70,34 @@ export class CanvasRenderService {
     context.fillStyle = '#ffffff';
     context.fill();
 
+    //draw inner shadow around image to add depth and separation from frame
+    const shadowSize = innerSize - 24;
+    const horizontalInset = innerInset + 12;
+    const verticalInset = innerInset + 12;
+    context.save();
+    this.drawRoundedRect(
+      context,
+      horizontalInset,
+      verticalInset,
+      shadowSize,
+      shadowSize,
+      INNER_RADIUS,
+    );
+    context.shadowBlur = 40;
+    const averageColor = this.getAverageColorFromImageBottom(
+      imageElement,
+      zoom,
+      rotation,
+      offsetX,
+      offsetY,
+      image,
+      innerSize,
+    );
+    context.shadowColor = `rgba(${averageColor.r}, ${averageColor.g}, ${averageColor.b}, 1)`;
+    context.fillStyle = 'white';
+    context.fillRect(horizontalInset, verticalInset, shadowSize, shadowSize);
+    context.restore();
+
     // Draw inner white background with clipping to rounded corners
     context.save();
     this.drawRoundedRect(context, innerInset, innerInset, innerSize, innerSize, INNER_RADIUS);
@@ -87,17 +114,9 @@ export class CanvasRenderService {
 
     context.restore();
 
-    // Draw inner border (white stroke) to separate image from outer frame
-    context.save();
-    context.strokeStyle = 'rgba(255, 255, 255, 0.96)';
-    context.lineWidth = 4;
-    this.drawRoundedRect(context, innerInset, innerInset, innerSize, innerSize, INNER_RADIUS);
-    context.stroke();
-    context.restore();
-
     // Draw outer border (subtle blue stroke) for visual definition
     context.save();
-    context.strokeStyle = 'rgba(189, 219, 255, 0.55)';
+    context.strokeStyle = 'rgba(189, 219, 255, 0.25)';
     context.lineWidth = 2;
     this.drawRoundedRect(
       context,
@@ -111,6 +130,87 @@ export class CanvasRenderService {
     context.restore();
 
     return canvas.toDataURL('image/png');
+  }
+
+  /**
+   * Calculates the average color from the bottom of the cropped image.
+   * Takes into account zoom, rotation, and offset to sample from the visible portion.
+   *
+   * @param imageElement HTML image element to sample
+   * @param zoom Scale factor
+   * @param rotation Rotation angle in degrees
+   * @param offsetX Horizontal offset in logical units
+   * @param offsetY Vertical offset in logical units
+   * @param image Image metadata
+   * @param innerSize Size of the inner rendering area
+   * @returns Object with average RGB values
+   */
+  private getAverageColorFromImageBottom(
+    imageElement: HTMLImageElement,
+    zoom: number,
+    rotation: number,
+    offsetX: number,
+    offsetY: number,
+    image: LoadedImage,
+    innerSize: number,
+  ): { r: number; g: number; b: number } {
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+
+    if (!tempCtx) {
+      return { r: 0, g: 0, b: 0 };
+    }
+
+    // Render at a small scale for performance
+    tempCanvas.width = 100;
+    tempCanvas.height = 100;
+
+    try {
+      // Replicate the same rendering as the main output
+      const rotationRadians = this.math.toRadians(rotation);
+      const coverScale = Math.max(100 / image.width, 100 / image.height);
+      const drawWidth = image.width * coverScale * zoom;
+      const drawHeight = image.height * coverScale * zoom;
+
+      // Apply the same offset calculation
+      const offsetScale = 100 / 320;
+      const centerX = 50 + offsetX * offsetScale;
+      const centerY = 50 + offsetY * offsetScale;
+
+      // Draw the transformed image
+      tempCtx.save();
+      tempCtx.translate(centerX, centerY);
+      tempCtx.rotate(rotationRadians);
+      tempCtx.drawImage(imageElement, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+      tempCtx.restore();
+
+      // Sample only the bottom 20% of the canvas
+      const bottomStart = Math.floor(100 * 0.8);
+      const imageData = tempCtx.getImageData(0, bottomStart, 100, 20);
+      const data = imageData.data;
+
+      let r = 0,
+        g = 0,
+        b = 0;
+      let count = 0;
+
+      // Sample every 4th pixel from bottom area
+      for (let i = 0; i < data.length; i += 16) {
+        r += data[i];
+        g += data[i + 1];
+        b += data[i + 2];
+        count++;
+      }
+
+      return {
+        r: Math.round(r / count) || 0,
+        g: Math.round(g / count) || 0,
+        b: Math.round(b / count) || 0,
+      };
+    } catch {
+      // Fallback if image is CORS-protected or unavailable
+      return { r: 0, g: 0, b: 0 };
+    }
   }
 
   /**

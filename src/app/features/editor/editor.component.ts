@@ -1,23 +1,23 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { LoadedImage, ImageSourceMode, SearchResult, DragState, CropMetrics } from '../../core/types';
-import { ImageService } from '../../core/services/image.service';
-import { SearchService } from '../../core/services/search.service';
-import { ImageProcessingService } from '../../core/services/image-processing.service';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { CanvasRenderService } from '../../core/services/canvas-render.service';
+import { ImageProcessingService } from '../../core/services/image-processing.service';
+import { ImageService } from '../../core/services/image.service';
 import { MathService } from '../../core/services/math.service';
+import { SearchService } from '../../core/services/search.service';
+import { DragState, ImageSourceMode, LoadedImage, SearchResult } from '../../core/types';
 import {
-  DEFAULT_ZOOM,
   DEFAULT_ROTATION,
-  MIN_ZOOM,
+  DEFAULT_ZOOM,
+  MAX_ROTATION,
   MAX_ZOOM,
   MIN_ROTATION,
-  MAX_ROTATION,
+  MIN_ZOOM,
 } from '../../shared/constants';
-import { SourcePanelComponent } from './components/source-panel.component';
 import { CropStageComponent } from './components/crop-stage.component';
 import { EditorControlsComponent } from './components/editor-controls.component';
 import { OutputPanelComponent } from './components/output-panel.component';
+import { SourcePanelComponent } from './components/source-panel.component';
 
 @Component({
   selector: 'app-editor',
@@ -212,7 +212,9 @@ export class EditorComponent {
         this.searchService.searchWikimedia(searchTerm),
       ]);
       const results = [...openverseResults, ...wikimediaResults].sort((left, right) => {
-        return this.searchService.scoreSearchResult(right) - this.searchService.scoreSearchResult(left);
+        return (
+          this.searchService.scoreSearchResult(right) - this.searchService.scoreSearchResult(left)
+        );
       });
 
       this.searchResults.set(results);
@@ -230,7 +232,10 @@ export class EditorComponent {
     this.searchError.set(null);
 
     try {
-      const { element, image } = await this.imageService.loadRemoteImage(result.imageUrl, result.title);
+      const { element, image } = await this.imageService.loadRemoteImage(
+        result.imageUrl,
+        result.title,
+      );
       this.revokeCurrentImageUrl();
 
       this.imageElement.set(element);
@@ -238,7 +243,10 @@ export class EditorComponent {
       this.resetEditor();
     } catch {
       try {
-        const { element, image } = await this.imageService.loadRemoteImage(result.thumbnailUrl, result.title);
+        const { element, image } = await this.imageService.loadRemoteImage(
+          result.thumbnailUrl,
+          result.title,
+        );
         this.revokeCurrentImageUrl();
 
         this.imageElement.set(element);
@@ -265,7 +273,11 @@ export class EditorComponent {
   }
 
   protected rotateBy(delta: number): void {
-    const nextRotation = this.mathService.clamp(this.rotation() + delta, MIN_ROTATION, MAX_ROTATION);
+    const nextRotation = this.mathService.clamp(
+      this.rotation() + delta,
+      MIN_ROTATION,
+      MAX_ROTATION,
+    );
     this.rotation.set(nextRotation);
     this.clampOffsets();
     this.renderOutput();

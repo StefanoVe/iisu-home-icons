@@ -10,12 +10,9 @@ import { ImageSourceMode, LoadedImage, SearchResult } from '../../../core/types'
   template: `
     <div class="panel-header">
       <h2>1. Source</h2>
-      @if (hasImage()) {
-        <button class="ghost-button" type="button" (click)="onResetClick()">Reset</button>
-      }
     </div>
 
-    <div class="source-toggle" aria-label="Image source">
+    <div class="source-toggle pointer-events-none" aria-label="Image source">
       <button
         class="toggle-button"
         type="button"
@@ -25,9 +22,8 @@ import { ImageSourceMode, LoadedImage, SearchResult } from '../../../core/types'
         Upload
       </button>
       <button
-        class="toggle-button disabled:opacity-50"
+        class="toggle-button opacity-50"
         type="button"
-        disabled
         [attr.aria-pressed]="currentMode() === 'search'"
         (click)="onToggleMode('search')"
       >
@@ -44,8 +40,20 @@ import { ImageSourceMode, LoadedImage, SearchResult } from '../../../core/types'
         (dragleave)="onDragLeave($event)"
         (drop)="onDrop($event)"
       >
-        <svg class="dropzone-icon" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M12 2v12m0 0l-4-4m4 4l4-4M19 19H5" stroke-linecap="round" stroke-linejoin="round"/>
+        <svg
+          class="dropzone-icon"
+          width="56"
+          height="56"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+        >
+          <path
+            d="M12 2v12m0 0l-4-4m4 4l4-4M19 19H5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
         </svg>
         <span class="dropzone-title">
           @if (isDragOver()) {
