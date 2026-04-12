@@ -126,14 +126,14 @@ import { MAX_SHADOW_BLUR, MIN_SHADOW_BLUR } from '../../../shared/constants';
           [attr.transform]="shadowAdvancedOpen() ? 'rotate(90 12 12)' : 'rotate(0 12 12)'"
         />
       </svg>
-      <span>Shadow Settings</span>
+      <span>Drop Shadow</span>
     </button>
 
     @if (shadowAdvancedOpen()) {
       <div class="advanced-panel">
         <label class="slider-field" for="shadow-blur-control">
           <span class="field-header">
-            <span>Shadow Blur</span>
+            <span>Size</span>
             <strong>{{ currentShadowBlur() }}px</strong>
           </span>
           <input
@@ -148,6 +148,9 @@ import { MAX_SHADOW_BLUR, MIN_SHADOW_BLUR } from '../../../shared/constants';
         </label>
 
         <div class="shadow-color-section">
+          <span class="color-field field-header">
+            <span>Color</span>
+          </span>
           <div class="shadow-color-toggle">
             <label class="toggle-label">
               <input
@@ -156,16 +159,13 @@ import { MAX_SHADOW_BLUR, MIN_SHADOW_BLUR } from '../../../shared/constants';
                 (change)="onToggleShadowColorAuto()"
               />
               <span class="toggle-text">
-                {{ shadowColorAuto() ? 'Auto (from image)' : 'Custom color' }}
+                <span> Average </span>
               </span>
             </label>
           </div>
 
           @if (!shadowColorAuto()) {
             <label class="color-field" for="shadow-color-control">
-              <span class="field-header">
-                <span>Color</span>
-              </span>
               <input
                 id="shadow-color-control"
                 type="color"
