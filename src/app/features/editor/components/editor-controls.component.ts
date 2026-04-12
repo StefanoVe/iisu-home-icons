@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
+import { MIN_SHADOW_BLUR, MAX_SHADOW_BLUR } from '../../../shared/constants';
 
 @Component({
   selector: 'app-editor-controls',
@@ -68,6 +69,76 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
       <button class="ghost-button" type="button" (click)="onRotateBy(-5)">-5°</button>
       <button class="ghost-button" type="button" (click)="onRotateBy(5)">+5°</button>
     </div>
+
+    <!-- Advanced Shadow Settings -->
+    <button
+      class="advanced-toggle"
+      type="button"
+      (click)="toggleAdvancedShadow()"
+      [attr.aria-expanded]="shadowAdvancedOpen()"
+      aria-label="Toggle advanced shadow settings"
+    >
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path
+          d="M8 12h8M8 12l4-4m-4 4l4 4"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          [attr.transform]="shadowAdvancedOpen() ? 'rotate(90 12 12)' : 'rotate(0 12 12)'"
+        />
+      </svg>
+      <span>Shadow Settings</span>
+    </button>
+
+    @if (shadowAdvancedOpen()) {
+      <div class="advanced-shadow-panel">
+        <label class="slider-field" for="shadow-blur-control">
+          <span class="field-header">
+            <span>Shadow Blur</span>
+            <strong>{{ currentShadowBlur() }}px</strong>
+          </span>
+          <input
+            id="shadow-blur-control"
+            type="range"
+            [min]="MIN_SHADOW_BLUR"
+            [max]="MAX_SHADOW_BLUR"
+            step="1"
+            [value]="currentShadowBlur()"
+            (input)="onShadowBlurChange($event)"
+          />
+        </label>
+
+        <div class="shadow-color-section">
+          <div class="shadow-color-toggle">
+            <label class="toggle-label">
+              <input
+                type="checkbox"
+                [checked]="shadowColorAuto()"
+                (change)="onToggleShadowColorAuto()"
+              />
+              <span class="toggle-text">
+                {{ shadowColorAuto() ? 'Auto (from image)' : 'Custom color' }}
+              </span>
+            </label>
+          </div>
+
+          @if (!shadowColorAuto()) {
+            <label class="color-field" for="shadow-color-control">
+              <span class="field-header">
+                <span>Color</span>
+              </span>
+              <input
+                id="shadow-color-control"
+                type="color"
+                [value]="currentShadowColor()"
+                (input)="onShadowColorChange($event)"
+              />
+            </label>
+          }
+        </div>
+      </div>
+    }
   `,
   styles: `
     :host {
@@ -128,13 +199,39 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
       margin-top: 14px;
     }
 
-    .slider-field {
+    .slider-field,
+    .color-field {
       display: grid;
       gap: 8px;
       color: var(--text-soft, #5a7798);
       font-size: 0.9rem;
       font-weight: 700;
       cursor: pointer;
+    }
+
+    .color-field input[type='color'] {
+      width: 100%;
+      height: 2.8rem;
+      border: 2px solid rgba(44, 167, 242, 0.3);
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .color-field input[type='color']:focus-visible {
+      outline: 3px solid rgba(34, 139, 230, 0.32);
+      outline-offset: 2px;
+    }
+
+    .color-field input[type='color']:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .color-field input[type='checkbox'] {
+      width: 1.2rem;
+      height: 1.2rem;
+      cursor: pointer;
+      accent-color: var(--accent-deep, #0f67bf);
     }
 
     .field-header {
@@ -244,6 +341,135 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
       outline-offset: 4px;
     }
 
+    .advanced-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      margin-top: 14px;
+      padding: 10px 12px;
+      border: 1px solid rgba(44, 167, 242, 0.2);
+      border-radius: 8px;
+      background: rgba(229, 242, 255, 0.6);
+      color: var(--accent-deep, #0f67bf);
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .advanced-toggle:hover {
+      background: rgba(229, 242, 255, 0.95);
+      border-color: rgba(44, 167, 242, 0.4);
+    }
+
+    .advanced-toggle:focus-visible {
+      outline: 3px solid rgba(34, 139, 230, 0.32);
+      outline-offset: 2px;
+    }
+
+    .advanced-toggle svg {
+      width: 1rem;
+      height: 1rem;
+      transition: transform 0.2s ease;
+    }
+
+    .advanced-shadow-panel {
+      display: grid;
+      gap: 12px;
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 8px;
+      background: rgba(248, 252, 255, 0.6);
+      border: 1px solid rgba(44, 167, 242, 0.15);
+    }
+
+    .shadow-color-section {
+      display: grid;
+      gap: 10px;
+    }
+
+    .shadow-color-toggle {
+      display: flex;
+      align-items: center;
+    }
+
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-soft, #5a7798);
+    }
+
+    .toggle-label input[type='checkbox'] {
+      appearance: none;
+      width: 2rem;
+      height: 1.1rem;
+      border-radius: 999px;
+      background: rgba(139, 189, 236, 0.3);
+      border: 1px solid rgba(44, 167, 242, 0.3);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .toggle-label input[type='checkbox']:before {
+      content: '';
+      position: absolute;
+      width: 0.8rem;
+      height: 0.8rem;
+      border-radius: 50%;
+      background: #ffffff;
+      top: 0.15rem;
+      left: 0.15rem;
+      transition: left 0.2s ease;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .toggle-label input[type='checkbox']:checked {
+      background: rgba(44, 167, 242, 0.8);
+      border-color: var(--accent-deep, #0f67bf);
+    }
+
+    .toggle-label input[type='checkbox']:checked:before {
+      left: 0.85rem;
+    }
+
+    .toggle-label input[type='checkbox']:focus-visible {
+      outline: 3px solid rgba(34, 139, 230, 0.32);
+      outline-offset: 2px;
+    }
+
+    .toggle-text {
+      font-weight: 700;
+      color: var(--accent-deep, #0f67bf);
+    }
+
+    .color-field {
+      display: grid;
+      gap: 8px;
+      color: var(--text-soft, #5a7798);
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .color-field input[type='color'] {
+      width: 100%;
+      height: 2.8rem;
+      border: 2px solid rgba(44, 167, 242, 0.3);
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .color-field input[type='color']:focus-visible {
+      outline: 3px solid rgba(34, 139, 230, 0.32);
+      outline-offset: 2px;
+    }
+
     @media (max-width: 640px) {
       .tool-grid {
         grid-template-columns: 1fr 1fr;
@@ -252,6 +478,10 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
   `,
 })
 export class EditorControlsComponent {
+  protected readonly MIN_SHADOW_BLUR = MIN_SHADOW_BLUR;
+  protected readonly MAX_SHADOW_BLUR = MAX_SHADOW_BLUR;
+  protected readonly shadowAdvancedOpen = signal(false);
+
   minZoom = input(1);
   maxZoom = input(3);
   minRotation = input(-180);
@@ -259,11 +489,17 @@ export class EditorControlsComponent {
   currentZoom = input(1.18);
   currentRotation = input(0);
   gridVisible = input(true);
+  currentShadowBlur = input(40);
+  currentShadowColor = input('#000000');
+  shadowColorAuto = input(true);
 
   zoomChange = output<number>();
   rotationChange = output<number>();
   gridToggle = output<void>();
   rotateBy = output<number>();
+  shadowBlurChange = output<number>();
+  shadowColorChange = output<string>();
+  shadowColorAutoToggle = output<void>();
 
   formatZoom(value: number): string {
     return `${value.toFixed(2)}x`;
@@ -291,5 +527,25 @@ export class EditorControlsComponent {
 
   onRotateBy(delta: number): void {
     this.rotateBy.emit(delta);
+  }
+
+  toggleAdvancedShadow(): void {
+    this.shadowAdvancedOpen.update((value) => !value);
+  }
+
+  onShadowBlurChange(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    const value = Number(input?.value ?? this.currentShadowBlur());
+    this.shadowBlurChange.emit(value);
+  }
+
+  onShadowColorChange(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    const value = input?.value ?? this.currentShadowColor();
+    this.shadowColorChange.emit(value);
+  }
+
+  onToggleShadowColorAuto(): void {
+    this.shadowColorAutoToggle.emit();
   }
 }

@@ -8,6 +8,8 @@ import { SearchService } from '../../core/services/search.service';
 import { DragState, ImageSourceMode, LoadedImage, SearchResult } from '../../core/types';
 import {
   DEFAULT_ROTATION,
+  DEFAULT_SHADOW_BLUR,
+  DEFAULT_SHADOW_COLOR,
   DEFAULT_ZOOM,
   MAX_ROTATION,
   MAX_ZOOM,
@@ -36,7 +38,7 @@ import { SourcePanelComponent } from './components/source-panel.component';
     '(window:pointercancel)': 'onPointerUp($event)',
   },
   template: `
-    <article class="panel panel-editor">
+    <article class="panel panel-editor flex flex-col gap-10">
       <app-source-panel
         [currentMode]="imageSourceMode()"
         [currentImage]="image()"
@@ -62,10 +64,16 @@ import { SourcePanelComponent } from './components/source-panel.component';
           [currentZoom]="zoom()"
           [currentRotation]="rotation()"
           [gridVisible]="showGrid()"
+          [currentShadowBlur]="shadowBlur()"
+          [currentShadowColor]="shadowDisplayColor()"
+          [shadowColorAuto]="shadowColorAuto()"
           (zoomChange)="onZoomChange($event)"
           (rotationChange)="onRotationChange($event)"
           (gridToggle)="toggleGrid()"
           (rotateBy)="rotateBy($event)"
+          (shadowBlurChange)="onShadowBlurChange($event)"
+          (shadowColorChange)="onShadowColorChange($event)"
+          (shadowColorAutoToggle)="onShadowColorAutoToggle()"
         ></app-editor-controls>
 
         <app-crop-stage
@@ -160,6 +168,9 @@ export class EditorComponent {
   protected readonly zoom = signal(DEFAULT_ZOOM);
   protected readonly rotation = signal(DEFAULT_ROTATION);
   protected readonly showGrid = signal(true);
+  protected readonly shadowBlur = signal(DEFAULT_SHADOW_BLUR);
+  protected readonly shadowColor = signal(DEFAULT_SHADOW_COLOR);
+  protected readonly shadowColorAuto = signal(true);
 
   // Computed
   protected readonly isDragging = computed(() => this.dragState() !== null);
@@ -168,6 +179,29 @@ export class EditorComponent {
   protected readonly cropMetrics = computed(() =>
     this.imageProcessingService.calculateCropMetrics(this.image(), this.zoom(), this.rotation()),
   );
+
+  protected readonly shadowDisplayColor = computed(() => {
+    if (!this.shadowColorAuto()) {
+      return this.shadowColor();
+    }
+
+    const image = this.image();
+    const imageElement = this.imageElement();
+    if (!image || !imageElement) {
+      return '#000000';
+    }
+
+    const averageColor = this.canvasRenderService.getAverageColorForDisplay(
+      imageElement,
+      this.zoom(),
+      this.rotation(),
+      this.offsetX(),
+      this.offsetY(),
+      image,
+    );
+
+    return this.mathService.rgbToHex(averageColor.r, averageColor.g, averageColor.b);
+  });
 
   // File handling
   protected async onFileSelected(file: File): Promise<void> {
@@ -287,6 +321,21 @@ export class EditorComponent {
     this.showGrid.update((value) => !value);
   }
 
+  protected onShadowColorAutoToggle(): void {
+    this.shadowColorAuto.update((value) => !value);
+    this.renderOutput();
+  }
+
+  protected onShadowBlurChange(value: number): void {
+    this.shadowBlur.set(value);
+    this.renderOutput();
+  }
+
+  protected onShadowColorChange(value: string): void {
+    this.shadowColor.set(value);
+    this.renderOutput();
+  }
+
   // Pointer handling
   protected onPointerDown(event: PointerEvent): void {
     if (!this.hasImage()) {
@@ -366,6 +415,7 @@ export class EditorComponent {
   }
 
   private renderOutput(): void {
+    const finalShadowColor = this.shadowColorAuto() ? 'auto' : this.shadowColor();
     const url = this.canvasRenderService.renderOutput(
       this.image(),
       this.imageElement(),
@@ -373,6 +423,8 @@ export class EditorComponent {
       this.rotation(),
       this.offsetX(),
       this.offsetY(),
+      this.shadowBlur(),
+      finalShadowColor,
     );
     this.outputUrl.set(url);
   }

@@ -19,6 +19,10 @@ export const DEFAULT_ROTATION = 0;
 // Canvas effects
 export const DEFAULT_FADE_STRENGTH = 0.28;
 export const DEFAULT_GLOW_STRENGTH = 0.22;
+export const DEFAULT_SHADOW_BLUR = 40;
+export const DEFAULT_SHADOW_COLOR = 'auto';
+export const MIN_SHADOW_BLUR = 10;
+export const MAX_SHADOW_BLUR = 80;
 
 // API Endpoints
 export const OPENVERSE_SEARCH_ENDPOINT = 'https://api.openverse.org/v1/images/';

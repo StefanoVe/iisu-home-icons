@@ -23,6 +23,8 @@ export class CanvasRenderService {
    * @param rotation Rotation angle in degrees (0-360)
    * @param offsetX Horizontal offset in logical units (-320 to 320)
    * @param offsetY Vertical offset in logical units (-320 to 320)
+   * @param shadowBlur Shadow blur radius in pixels
+   * @param shadowColor Shadow color as hex string or 'auto' for average color
    * @returns PNG Data URL or null if rendering failed
    */
   renderOutput(
@@ -32,6 +34,8 @@ export class CanvasRenderService {
     rotation: number,
     offsetX: number,
     offsetY: number,
+    shadowBlur: number,
+    shadowColor: string,
   ): string | null {
     if (!image || !imageElement) {
       return null;
@@ -83,17 +87,24 @@ export class CanvasRenderService {
       shadowSize,
       INNER_RADIUS,
     );
-    context.shadowBlur = 40;
-    const averageColor = this.getAverageColorFromImageBottom(
-      imageElement,
-      zoom,
-      rotation,
-      offsetX,
-      offsetY,
-      image,
-      innerSize,
-    );
-    context.shadowColor = `rgba(${averageColor.r}, ${averageColor.g}, ${averageColor.b}, 1)`;
+    context.shadowBlur = shadowBlur;
+
+    // Determine shadow color: use provided color or calculate from image
+    if (shadowColor === 'auto') {
+      const averageColor = this.getAverageColorFromImageBottom(
+        imageElement,
+        zoom,
+        rotation,
+        offsetX,
+        offsetY,
+        image,
+        innerSize,
+      );
+      context.shadowColor = `rgba(${averageColor.r}, ${averageColor.g}, ${averageColor.b}, 1)`;
+    } else {
+      context.shadowColor = shadowColor;
+    }
+
     context.fillStyle = 'white';
     context.fillRect(horizontalInset, verticalInset, shadowSize, shadowSize);
     context.restore();
@@ -211,6 +222,29 @@ export class CanvasRenderService {
       // Fallback if image is CORS-protected or unavailable
       return { r: 0, g: 0, b: 0 };
     }
+  }
+
+  /**
+   * Public wrapper for getting average color from image bottom.
+   * Used by components to calculate display colors.
+   */
+  getAverageColorForDisplay(
+    imageElement: HTMLImageElement,
+    zoom: number,
+    rotation: number,
+    offsetX: number,
+    offsetY: number,
+    image: LoadedImage,
+  ): { r: number; g: number; b: number } {
+    return this.getAverageColorFromImageBottom(
+      imageElement,
+      zoom,
+      rotation,
+      offsetX,
+      offsetY,
+      image,
+      320, // innerSize default
+    );
   }
 
   /**
