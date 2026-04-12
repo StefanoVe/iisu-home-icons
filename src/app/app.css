@@ -1,5 +1,7 @@
 :host {
-  --page-background: radial-gradient(circle at top, #f5fcff 0%, #edf4ff 40%, #eef1f7 100%);
+  --page-background:
+    radial-gradient(circle, rgb(216, 217, 220) 1px, transparent 1px), rgb(240, 242, 245);
+  --page-background-size: 14px 14px, auto;
   --panel-background: rgba(255, 255, 255, 0.88);
   --panel-border: rgba(139, 189, 236, 0.32);
   --text-strong: #173154;
@@ -10,6 +12,7 @@
   display: block;
   min-height: 100dvh;
   background: var(--page-background);
+  background-size: var(--page-background-size);
   font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
 }
 
