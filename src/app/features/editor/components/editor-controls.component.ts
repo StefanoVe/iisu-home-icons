@@ -214,7 +214,7 @@ import { MAX_SHADOW_BLUR, MIN_SHADOW_BLUR } from '../../../shared/constants';
           (change)="onStyleChange($event)"
         >
           <option value="concept">Concept-like</option>
-          <option value="glassy">Glassy (Credits to themisterbread)</option>
+          <option value="glassy">Glassy</option>
         </select>
       </div>
     }
