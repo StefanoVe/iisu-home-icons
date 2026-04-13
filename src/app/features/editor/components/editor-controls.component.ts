@@ -177,6 +177,47 @@ import { MAX_SHADOW_BLUR, MIN_SHADOW_BLUR } from '../../../shared/constants';
         </div>
       </div>
     }
+
+    <!-- Style Settings -->
+    <button
+      class="advanced-toggle"
+      type="button"
+      (click)="toggleAdvancedStyle()"
+      [attr.aria-expanded]="styleAdvancedOpen()"
+      aria-label="Toggle advanced style settings"
+    >
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M8 12h8M8 12l4-4m-4 4l4 4"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          [attr.transform]="styleAdvancedOpen() ? 'rotate(90 12 12)' : 'rotate(0 12 12)'"
+        />
+      </svg>
+      <span>Style</span>
+    </button>
+
+    @if (styleAdvancedOpen()) {
+      <div class="advanced-panel">
+        <!-- Future style controls go here -->
+        <select
+          class="style-select"
+          aria-label="Select icon style"
+          (change)="onStyleChange($event)"
+        >
+          <option value="concept">Concept-like</option>
+          <option value="glassy">Glassy (Credits to themisterbread)</option>
+        </select>
+      </div>
+    }
   `,
   styles: `
     :host {
@@ -571,6 +612,7 @@ export class EditorControlsComponent {
   protected readonly MAX_SHADOW_BLUR = MAX_SHADOW_BLUR;
   protected readonly rotationAdvancedOpen = signal(false);
   protected readonly shadowAdvancedOpen = signal(false);
+  protected readonly styleAdvancedOpen = signal(false);
 
   minZoom = input(1);
   maxZoom = input(3);
@@ -582,6 +624,7 @@ export class EditorControlsComponent {
   currentShadowBlur = input(40);
   currentShadowColor = input('#000000');
   shadowColorAuto = input(true);
+  styleVariant = input('concept');
 
   zoomChange = output<number>();
   rotationChange = output<number>();
@@ -590,6 +633,7 @@ export class EditorControlsComponent {
   shadowBlurChange = output<number>();
   shadowColorChange = output<string>();
   shadowColorAutoToggle = output<void>();
+  styleVariantChange = output<string>();
 
   formatZoom(value: number): string {
     return `${value.toFixed(2)}x`;
@@ -609,6 +653,12 @@ export class EditorControlsComponent {
     this.zoomChange.emit(value);
   }
 
+  onStyleChange(event: Event): void {
+    const input = event.target as HTMLSelectElement | null;
+    const value = input?.value ?? this.styleVariant();
+    this.styleVariantChange.emit(value);
+  }
+
   onRotationChange(event: Event): void {
     const input = event.target as HTMLInputElement | null;
     const value = Number(input?.value ?? this.currentRotation());
@@ -621,6 +671,10 @@ export class EditorControlsComponent {
 
   toggleAdvancedRotation(): void {
     this.rotationAdvancedOpen.update((value) => !value);
+  }
+
+  toggleAdvancedStyle(): void {
+    this.styleAdvancedOpen.update((value) => !value);
   }
 
   toggleAdvancedShadow(): void {

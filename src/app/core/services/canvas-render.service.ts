@@ -9,36 +9,51 @@ import {
 import { LoadedImage } from '../types';
 import { MathService } from './math.service';
 
+export interface IRenderOptions {
+  image: LoadedImage | null;
+  imageElement: HTMLImageElement | null;
+  zoom: number;
+  rotation: number;
+  offsetX: number;
+  offsetY: number;
+  shadowBlur: number;
+  shadowColor: string;
+  outputSize: number;
+  styleVariant: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class CanvasRenderService {
   constructor(private math: MathService) {}
 
-  /**
-   * Renders a PNG image with the configured crop, zoom, and rotation.
-   * Returns a Data URL string that can be displayed or downloaded.
-   *
-   * @param image Image metadata with width/height
-   * @param imageElement HTML image element to render
-   * @param zoom Scale factor (1 = 100%)
-   * @param rotation Rotation angle in degrees (0-360)
-   * @param offsetX Horizontal offset in logical units (-320 to 320)
-   * @param offsetY Vertical offset in logical units (-320 to 320)
-   * @param shadowBlur Shadow blur radius in pixels
-   * @param shadowColor Shadow color as hex string or 'auto' for average color
-   * @param outputSize Output canvas size in pixels (default: 512)
-   * @returns PNG Data URL or null if rendering failed
-   */
-  renderOutput(
-    image: LoadedImage | null,
-    imageElement: HTMLImageElement | null,
-    zoom: number,
-    rotation: number,
-    offsetX: number,
-    offsetY: number,
-    shadowBlur: number,
-    shadowColor: string,
-    outputSize: number = OUTPUT_SIZE,
-  ): string | null {
+  public async renderOutput(renderOptions: IRenderOptions): Promise<string | null> {
+    switch (renderOptions.styleVariant) {
+      case 'concept':
+        return this._renderConceptStyleOutput(renderOptions);
+      case 'glassy':
+        return (await this._renderGlassyStyleOutput(renderOptions)) as unknown as string | null;
+
+      default:
+        return null;
+    }
+
+    // Future style variants can be handled with additional methods
+    return null;
+  }
+
+  private _renderGlassyStyleOutput(renderOptions: IRenderOptions) {
+    const {
+      image,
+      imageElement,
+      zoom,
+      rotation,
+      offsetX,
+      offsetY,
+      shadowBlur,
+      shadowColor,
+      outputSize,
+    } = renderOptions;
+
     if (!image || !imageElement) {
       return null;
     }
@@ -76,7 +91,168 @@ export class CanvasRenderService {
     context.clearRect(0, 0, outputSize, outputSize);
 
     // Draw outer white frame
-    this.drawRoundedRect(context, outerInset, outerInset, outerSize, outerSize, FRAME_RADIUS * scaleFactor);
+    this.drawRoundedRect(
+      context,
+      outerInset,
+      outerInset,
+      outerSize,
+      outerSize,
+      FRAME_RADIUS * scaleFactor,
+    );
+    context.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    context.shadowBlur = 20 * scaleFactor;
+    context.shadowColor = 'rgba(255, 255, 255, 0.2)';
+    context.fill();
+
+    //draw inner shadow around image to add depth and separation from frame
+    const shadowSize = innerSize - 24 * scaleFactor;
+    const horizontalInset = innerInset + 12 * scaleFactor;
+    const verticalInset = innerInset + 12 * scaleFactor;
+    context.save();
+    this.drawRoundedRect(
+      context,
+      horizontalInset,
+      verticalInset,
+      shadowSize,
+      shadowSize,
+      INNER_RADIUS * scaleFactor,
+    );
+    context.shadowBlur = shadowBlur * scaleFactor;
+
+    // Determine shadow color: use provided color or calculate from image
+    if (shadowColor === 'auto') {
+      const averageColor = this.getAverageColorFromImageBottom(
+        imageElement,
+        zoom,
+        rotation,
+        offsetX,
+        offsetY,
+        image,
+        innerSize,
+      );
+      context.shadowColor = `rgba(${averageColor.r}, ${averageColor.g}, ${averageColor.b}, 1)`;
+    } else {
+      context.shadowColor = shadowColor;
+    }
+
+    context.fillStyle = 'white';
+    context.fillRect(horizontalInset, verticalInset, shadowSize, shadowSize);
+    context.restore();
+
+    // Draw inner white background with clipping to rounded corners
+    context.save();
+    this.drawRoundedRect(
+      context,
+      innerInset,
+      innerInset,
+      innerSize,
+      innerSize,
+      INNER_RADIUS * scaleFactor,
+    );
+    context.clip();
+    context.fillStyle = '#ffffff';
+    context.fillRect(innerInset, innerInset, innerSize, innerSize);
+
+    // Draw rotated and scaled image centered in the inner area
+    context.save();
+    context.translate(centerX, centerY);
+    context.rotate(rotationRadians);
+    context.drawImage(imageElement, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+    context.restore();
+
+    context.restore();
+
+    // Draw outer border (subtle blue stroke) for visual definition
+    context.save();
+    context.strokeStyle = 'rgba(189, 219, 255, 0.25)';
+    context.lineWidth = 2 * scaleFactor;
+    this.drawRoundedRect(
+      context,
+      outerInset + 2 * scaleFactor,
+      outerInset + 2 * scaleFactor,
+      outerSize - 4 * scaleFactor,
+      outerSize - 4 * scaleFactor,
+      (FRAME_RADIUS - 2) * scaleFactor,
+    );
+    context.stroke();
+    context.restore();
+
+    return canvas.toDataURL('image/png');
+  }
+
+  /**
+   * Renders a PNG image with the configured crop, zoom, and rotation.
+   * Returns a Data URL string that can be displayed or downloaded.
+   *
+   * @param image Image metadata with width/height
+   * @param imageElement HTML image element to render
+   * @param zoom Scale factor (1 = 100%)
+   * @param rotation Rotation angle in degrees (0-360)
+   * @param offsetX Horizontal offset in logical units (-320 to 320)
+   * @param offsetY Vertical offset in logical units (-320 to 320)
+   * @param shadowBlur Shadow blur radius in pixels
+   * @param shadowColor Shadow color as hex string or 'auto' for average color
+   * @param outputSize Output canvas size in pixels (default: 512)
+   * @returns PNG Data URL or null if rendering failed
+   */
+  private _renderConceptStyleOutput(renderOptions: IRenderOptions): string | null {
+    const {
+      image,
+      imageElement,
+      zoom,
+      rotation,
+      offsetX,
+      offsetY,
+      shadowBlur,
+      shadowColor,
+      outputSize,
+    } = renderOptions;
+
+    if (!image || !imageElement) {
+      return null;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = outputSize;
+    canvas.height = outputSize;
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+      return null;
+    }
+
+    // Calculate frame and inner content areas
+    const outerInset = FRAME_PADDING;
+    const outerSize = outputSize - outerInset * 2;
+
+    // Scale factor for responsive rendering at different output sizes
+    const scaleFactor = outputSize / OUTPUT_SIZE;
+    const scaledInnerPadding = INNER_PADDING * scaleFactor;
+    const innerInset = outerInset + scaledInnerPadding;
+    const innerSize = outputSize - innerInset * 2;
+
+    // Scale image to fit the inner area, accounting for zoom
+    const rotationRadians = this.math.toRadians(rotation);
+    const coverScale = Math.max(innerSize / image.width, innerSize / image.height);
+    const drawWidth = image.width * coverScale * zoom;
+    const drawHeight = image.height * coverScale * zoom;
+
+    // Convert offset from logical units to pixel coordinates
+    const offsetScale = innerSize / 320;
+    const centerX = innerInset + innerSize / 2 + offsetX * offsetScale;
+    const centerY = innerInset + innerSize / 2 + offsetY * offsetScale;
+
+    context.clearRect(0, 0, outputSize, outputSize);
+
+    // Draw outer white frame
+    this.drawRoundedRect(
+      context,
+      outerInset,
+      outerInset,
+      outerSize,
+      outerSize,
+      FRAME_RADIUS * scaleFactor,
+    );
     context.fillStyle = '#ffffff';
     context.fill();
 
@@ -117,7 +293,14 @@ export class CanvasRenderService {
 
     // Draw inner white background with clipping to rounded corners
     context.save();
-    this.drawRoundedRect(context, innerInset, innerInset, innerSize, innerSize, INNER_RADIUS * scaleFactor);
+    this.drawRoundedRect(
+      context,
+      innerInset,
+      innerInset,
+      innerSize,
+      innerSize,
+      INNER_RADIUS * scaleFactor,
+    );
     context.clip();
     context.fillStyle = '#ffffff';
     context.fillRect(innerInset, innerInset, innerSize, innerSize);

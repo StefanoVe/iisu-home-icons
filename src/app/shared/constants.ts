@@ -21,6 +21,7 @@ export const DEFAULT_FADE_STRENGTH = 0.28;
 export const DEFAULT_GLOW_STRENGTH = 0.22;
 export const DEFAULT_SHADOW_BLUR = 48;
 export const DEFAULT_SHADOW_COLOR = 'auto';
+export const DEFAULT_STYLE_VARIANT = 'concept';
 export const MIN_SHADOW_BLUR = 10;
 export const MAX_SHADOW_BLUR = 80;
 

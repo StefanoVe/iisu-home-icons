@@ -10,6 +10,7 @@ import {
   DEFAULT_ROTATION,
   DEFAULT_SHADOW_BLUR,
   DEFAULT_SHADOW_COLOR,
+  DEFAULT_STYLE_VARIANT,
   DEFAULT_ZOOM,
   MAX_ROTATION,
   MAX_ZOOM,
@@ -74,6 +75,7 @@ import { SourcePanelComponent } from './components/source-panel.component';
           (shadowBlurChange)="onShadowBlurChange($event)"
           (shadowColorChange)="onShadowColorChange($event)"
           (shadowColorAutoToggle)="onShadowColorAutoToggle()"
+          (styleVariantChange)="onStyleVariantChange($event)"
         ></app-editor-controls>
 
         <app-crop-stage
@@ -171,6 +173,7 @@ export class EditorComponent {
   protected readonly shadowBlur = signal(DEFAULT_SHADOW_BLUR);
   protected readonly shadowColor = signal(DEFAULT_SHADOW_COLOR);
   protected readonly shadowColorAuto = signal(true);
+  protected readonly styleVariant = signal(DEFAULT_STYLE_VARIANT);
 
   // Computed
   protected readonly isDragging = computed(() => this.dragState() !== null);
@@ -326,6 +329,11 @@ export class EditorComponent {
     this.renderOutput();
   }
 
+  protected onStyleVariantChange(value: string): void {
+    this.styleVariant.set(value);
+    this.renderOutput();
+  }
+
   protected onShadowBlurChange(value: number): void {
     this.shadowBlur.set(value);
     this.renderOutput();
@@ -381,7 +389,7 @@ export class EditorComponent {
     this.resetEditor();
   }
 
-  protected downloadResult(exportSize: number): void {
+  protected async downloadResult(exportSize: number): Promise<void> {
     const url = this.outputUrl();
     if (!url) {
       return;
@@ -392,17 +400,18 @@ export class EditorComponent {
 
     // If exporting at non-standard size, re-render at that size
     if (exportSize !== 512) {
-      const resizedUrl = this.canvasRenderService.renderOutput(
-        this.image(),
-        this.imageElement(),
-        this.zoom(),
-        this.rotation(),
-        this.offsetX(),
-        this.offsetY(),
-        this.shadowBlur(),
-        this.shadowColorAuto() ? 'auto' : this.shadowColor(),
-        exportSize,
-      );
+      const resizedUrl = await this.canvasRenderService.renderOutput({
+        image: this.image(),
+        imageElement: this.imageElement(),
+        zoom: this.zoom(),
+        rotation: this.rotation(),
+        offsetX: this.offsetX(),
+        offsetY: this.offsetY(),
+        shadowBlur: this.shadowBlur(),
+        shadowColor: this.shadowColorAuto() ? 'auto' : this.shadowColor(),
+        outputSize: exportSize,
+        styleVariant: this.styleVariant(),
+      });
       if (!resizedUrl) return;
       link.href = resizedUrl;
     } else {
@@ -433,18 +442,21 @@ export class EditorComponent {
     this.offsetY.set(clamped.y);
   }
 
-  private renderOutput(): void {
+  private async renderOutput(): Promise<void> {
     const finalShadowColor = this.shadowColorAuto() ? 'auto' : this.shadowColor();
-    const url = this.canvasRenderService.renderOutput(
-      this.image(),
-      this.imageElement(),
-      this.zoom(),
-      this.rotation(),
-      this.offsetX(),
-      this.offsetY(),
-      this.shadowBlur(),
-      finalShadowColor,
-    );
+    const renderOptions = {
+      image: this.image(),
+      imageElement: this.imageElement(),
+      zoom: this.zoom(),
+      rotation: this.rotation(),
+      offsetX: this.offsetX(),
+      offsetY: this.offsetY(),
+      shadowBlur: this.shadowBlur(),
+      shadowColor: finalShadowColor,
+      styleVariant: this.styleVariant(),
+      outputSize: 512,
+    };
+    const url = await this.canvasRenderService.renderOutput(renderOptions);
     this.outputUrl.set(url);
   }
 
