@@ -70,6 +70,7 @@ import { SourcePanelComponent } from './components/source-panel.component';
           [shadowColorAuto]="shadowColorAuto()"
           (zoomChange)="onZoomChange($event)"
           (rotationChange)="onRotationChange($event)"
+          [styleVariant]="styleVariant()"
           (gridToggle)="toggleGrid()"
           (rotateBy)="rotateBy($event)"
           (shadowBlurChange)="onShadowBlurChange($event)"

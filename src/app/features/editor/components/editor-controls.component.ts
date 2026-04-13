@@ -212,6 +212,7 @@ import { MAX_SHADOW_BLUR, MIN_SHADOW_BLUR } from '../../../shared/constants';
           class="style-select"
           aria-label="Select icon style"
           (change)="onStyleChange($event)"
+          [value]="styleVariant()"
         >
           <option value="concept">Concept-like</option>
           <option value="glassy">Glassy</option>
