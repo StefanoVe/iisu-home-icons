@@ -418,7 +418,7 @@ export class EditorComponent {
       link.href = url;
     }
 
-    link.download = `${imageName}-masked-${exportSize}.png`;
+    link.download = `${imageName}-masked-${exportSize}-${this.styleVariant()}.png`;
     link.click();
   }
 
