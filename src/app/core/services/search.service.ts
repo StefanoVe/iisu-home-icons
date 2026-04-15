@@ -10,7 +10,7 @@ import { SearchResult, SteamGridDbAssetKind, SteamGridDbGameSuggestion } from '.
 
 @Injectable({ providedIn: 'root' })
 export class SearchService {
-  private readonly steamGridDbFetchBatchSize = 8;
+  private readonly steamGridDbFetchBatchSize = 32;
 
   async searchSteamGridDbGameSuggestions(
     query: string,
