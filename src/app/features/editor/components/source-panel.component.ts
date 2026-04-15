@@ -124,7 +124,11 @@ import {
               </div>
             }
           </label>
-          <button class="primary-button search-button" type="submit" [disabled]="isSearching()">
+          <button
+            class="primary-button search-button"
+            type="submit"
+            [disabled]="isSearching() || !currentQuery().trim().length"
+          >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
