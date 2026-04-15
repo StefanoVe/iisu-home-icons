@@ -1,0 +1,18 @@
+{
+  "/steamgriddb-api": {
+    "target": "https://www.steamgriddb.com",
+    "changeOrigin": true,
+    "secure": true,
+    "pathRewrite": {
+      "^/steamgriddb-api": "/api/v2"
+    }
+  },
+  "/steamgriddb-cdn": {
+    "target": "https://cdn2.steamgriddb.com",
+    "changeOrigin": true,
+    "secure": true,
+    "pathRewrite": {
+      "^/steamgriddb-cdn": ""
+    }
+  }
+}

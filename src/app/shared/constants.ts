@@ -29,6 +29,9 @@ export const MAX_SHADOW_BLUR = 80;
 export const OPENVERSE_SEARCH_ENDPOINT = 'https://api.openverse.org/v1/images/';
 export const WIKIMEDIA_SEARCH_ENDPOINT =
   'https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrlimit=8&prop=imageinfo&iiprop=url&iiurlwidth=320&format=json&origin=*';
+export const STEAM_GRID_DB_API_ENDPOINT = '/steamgriddb-api';
+export const STEAM_GRID_DB_CDN_PROXY_ENDPOINT = '/steamgriddb-cdn';
 
 // Search
 export const SEARCH_PAGE_SIZE = 8;
+export const LOCAL_STORAGE_STEAM_GRID_DB_API_KEY = 'iisu.steamgriddb.api-key';

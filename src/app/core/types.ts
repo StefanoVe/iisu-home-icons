@@ -7,10 +7,18 @@ export type LoadedImage = {
 
 export type ImageSourceMode = 'upload' | 'search';
 
+export type SteamGridDbAssetKind = 'grid' | 'hero' | 'icon';
+export type SearchAssetFilter = 'all' | SteamGridDbAssetKind;
+export type SteamGridDbGameSuggestion = {
+  id: number;
+  name: string;
+};
+
 export type SearchResult = {
+  assetKind?: SteamGridDbAssetKind;
   id: string;
   height?: number;
-  source: 'openverse' | 'wikimedia';
+  source: 'openverse' | 'steamgriddb' | 'wikimedia';
   thumbnailUrl: string;
   title: string;
   imageUrl: string;

@@ -9,7 +9,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
   template: ` <footer
     class="p-2 py-4 text-white border-t border-white/50 backdrop-brightness-75 bg-blue-300/75 font-bytesized backdrop-blur"
   >
-    <span> v.1.1</span>
+    <span> v.1.2</span>
     <span class="float-right flex">
       made with
       <span class="mx-1 mr-2 mt-0.5"

@@ -5,7 +5,15 @@ import { ImageProcessingService } from '../../core/services/image-processing.ser
 import { ImageService } from '../../core/services/image.service';
 import { MathService } from '../../core/services/math.service';
 import { SearchService } from '../../core/services/search.service';
-import { DragState, ImageSourceMode, LoadedImage, SearchResult } from '../../core/types';
+import { SteamGridDbSettingsService } from '../../core/services/steamgriddb-settings.service';
+import {
+  DragState,
+  ImageSourceMode,
+  LoadedImage,
+  SearchAssetFilter,
+  SearchResult,
+  SteamGridDbGameSuggestion,
+} from '../../core/types';
 import {
   DEFAULT_ROTATION,
   DEFAULT_SHADOW_BLUR,
@@ -16,11 +24,13 @@ import {
   MAX_ZOOM,
   MIN_ROTATION,
   MIN_ZOOM,
+  SEARCH_PAGE_SIZE,
 } from '../../shared/constants';
 import { CropStageComponent } from './components/crop-stage.component';
 import { EditorControlsComponent } from './components/editor-controls.component';
 import { OutputPanelComponent } from './components/output-panel.component';
 import { SourcePanelComponent } from './components/source-panel.component';
+import { SteamGridDbApiKeyModalComponent } from './components/steamgriddb-api-key-modal.component';
 
 @Component({
   selector: 'app-editor',
@@ -31,6 +41,7 @@ import { SourcePanelComponent } from './components/source-panel.component';
     CropStageComponent,
     EditorControlsComponent,
     OutputPanelComponent,
+    SteamGridDbApiKeyModalComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
@@ -44,14 +55,28 @@ import { SourcePanelComponent } from './components/source-panel.component';
         [currentMode]="imageSourceMode()"
         [currentImage]="image()"
         [currentQuery]="searchQuery()"
-        [searchResults]="searchResults()"
+        [searchResults]="paginatedSearchResults()"
+        [searchSuggestions]="searchSuggestions()"
+        [searchSuggestionsLoading]="searchSuggestionsLoading()"
         [searchError]="searchError()"
+        [searchFilter]="searchFilter()"
+        [searchCollapsed]="searchCollapsed()"
+        [searchPage]="searchPage()"
+        [searchTotalPages]="searchTotalPages()"
+        [searchTotalResults]="filteredSearchResults().length"
         [isSearching]="searchLoading()"
         [selectedResultId]="selectedSearchId()"
+        [selectedSuggestionId]="selectedGameSuggestion()?.id ?? null"
+        [steamGridDbApiKey]="steamGridDbApiKey()"
         (resetClick)="onResetCrop()"
         (modeChange)="onSetImageSourceMode($event)"
         (fileSelected)="onFileSelected($event)"
+        (searchFilterChange)="onSearchFilterChange($event)"
+        (searchCollapsedChange)="onSearchCollapsedChange($event)"
+        (searchPageChange)="onSearchPageChange($event)"
         (searchQueryChange)="onSearchQueryInput($event)"
+        (searchSuggestionSelected)="onSearchSuggestionSelected($event)"
+        (apiKeySetupRequest)="openSteamGridDbSetup()"
         (searchSubmit)="submitSearch()"
         (resultSelected)="useSearchResult($event)"
       ></app-source-panel>
@@ -103,6 +128,13 @@ import { SourcePanelComponent } from './components/source-panel.component';
         (downloadClick)="downloadResult($event)"
       ></app-output-panel>
     </article>
+
+    <app-steamgriddb-api-key-modal
+      [isOpen]="isSteamGridDbSetupOpen()"
+      [currentApiKey]="steamGridDbApiKey()"
+      (close)="closeSteamGridDbSetup()"
+      (save)="saveSteamGridDbApiKey($event)"
+    ></app-steamgriddb-api-key-modal>
   `,
   styles: `
     :host {
@@ -146,9 +178,12 @@ import { SourcePanelComponent } from './components/source-panel.component';
 export class EditorComponent {
   private readonly imageService = inject(ImageService);
   private readonly searchService = inject(SearchService);
+  private readonly steamGridDbSettingsService = inject(SteamGridDbSettingsService);
   private readonly imageProcessingService = inject(ImageProcessingService);
   private readonly canvasRenderService = inject(CanvasRenderService);
   private readonly mathService = inject(MathService);
+  private autocompleteTimer: ReturnType<typeof window.setTimeout> | null = null;
+  private autocompleteRequestId = 0;
 
   protected readonly MIN_ZOOM = MIN_ZOOM;
   protected readonly MAX_ZOOM = MAX_ZOOM;
@@ -164,10 +199,18 @@ export class EditorComponent {
   protected readonly offsetY = signal(0);
   protected readonly outputUrl = signal<string | null>(null);
   protected readonly searchError = signal<string | null>(null);
+  protected readonly searchFilter = signal<SearchAssetFilter>('all');
+  protected readonly searchCollapsed = signal(false);
   protected readonly searchLoading = signal(false);
+  protected readonly searchPage = signal(1);
   protected readonly searchQuery = signal('');
+  protected readonly searchSuggestions = signal<SteamGridDbGameSuggestion[]>([]);
+  protected readonly searchSuggestionsLoading = signal(false);
   protected readonly searchResults = signal<SearchResult[]>([]);
+  protected readonly selectedGameSuggestion = signal<SteamGridDbGameSuggestion | null>(null);
   protected readonly selectedSearchId = signal<string | null>(null);
+  protected readonly isSteamGridDbSetupOpen = signal(false);
+  protected readonly steamGridDbApiKey = signal(this.steamGridDbSettingsService.getApiKey());
   protected readonly zoom = signal(DEFAULT_ZOOM);
   protected readonly rotation = signal(DEFAULT_ROTATION);
   protected readonly showGrid = signal(true);
@@ -183,6 +226,23 @@ export class EditorComponent {
   protected readonly cropMetrics = computed(() =>
     this.imageProcessingService.calculateCropMetrics(this.image(), this.zoom(), this.rotation()),
   );
+  protected readonly filteredSearchResults = computed(() => {
+    const filter = this.searchFilter();
+    const results = this.searchResults();
+    if (filter === 'all') {
+      return results;
+    }
+
+    return results.filter((result) => result.assetKind === filter);
+  });
+  protected readonly searchTotalPages = computed(() =>
+    Math.max(1, Math.ceil(this.filteredSearchResults().length / SEARCH_PAGE_SIZE)),
+  );
+  protected readonly paginatedSearchResults = computed(() => {
+    const currentPage = Math.min(this.searchPage(), this.searchTotalPages());
+    const startIndex = (currentPage - 1) * SEARCH_PAGE_SIZE;
+    return this.filteredSearchResults().slice(startIndex, startIndex + SEARCH_PAGE_SIZE);
+  });
 
   protected readonly shadowDisplayColor = computed(() => {
     if (!this.shadowColorAuto()) {
@@ -225,11 +285,88 @@ export class EditorComponent {
   // Image source mode
   protected onSetImageSourceMode(mode: ImageSourceMode): void {
     this.imageSourceMode.set(mode);
+    if (mode === 'search') {
+      this.searchCollapsed.set(false);
+    }
   }
 
   // Search
   protected onSearchQueryInput(query: string): void {
     this.searchQuery.set(query);
+    this.searchResults.set([]);
+    this.searchFilter.set('all');
+    this.searchPage.set(1);
+    this.selectedSearchId.set(null);
+
+    const normalizedQuery = query.trim();
+    const selectedSuggestion = this.selectedGameSuggestion();
+    if (selectedSuggestion && selectedSuggestion.name !== normalizedQuery) {
+      this.selectedGameSuggestion.set(null);
+    }
+
+    if (this.autocompleteTimer !== null) {
+      window.clearTimeout(this.autocompleteTimer);
+      this.autocompleteTimer = null;
+    }
+
+    if (!this.steamGridDbApiKey().trim() || normalizedQuery.length < 2) {
+      this.searchSuggestions.set([]);
+      this.searchSuggestionsLoading.set(false);
+      return;
+    }
+
+    this.searchSuggestionsLoading.set(true);
+    const requestId = ++this.autocompleteRequestId;
+    this.autocompleteTimer = window.setTimeout(() => {
+      void this.loadSearchSuggestions(normalizedQuery, requestId);
+    }, 220);
+  }
+
+  protected onSearchFilterChange(value: SearchAssetFilter): void {
+    this.searchFilter.set(value);
+    this.searchPage.set(1);
+  }
+
+  protected onSearchCollapsedChange(value: boolean): void {
+    this.searchCollapsed.set(value);
+  }
+
+  protected onSearchPageChange(value: number): void {
+    const nextPage = this.mathService.clamp(value, 1, this.searchTotalPages());
+    this.searchPage.set(nextPage);
+  }
+
+  protected onSearchSuggestionSelected(suggestion: SteamGridDbGameSuggestion): void {
+    this.selectedGameSuggestion.set(suggestion);
+    this.searchQuery.set(suggestion.name);
+    this.searchSuggestions.set([]);
+    this.searchSuggestionsLoading.set(false);
+    this.searchError.set(null);
+  }
+
+  protected onSteamGridDbApiKeyChange(value: string): void {
+    this.steamGridDbApiKey.set(value);
+    this.steamGridDbSettingsService.saveApiKey(value);
+  }
+
+  protected openSteamGridDbSetup(): void {
+    this.isSteamGridDbSetupOpen.set(true);
+  }
+
+  protected closeSteamGridDbSetup(): void {
+    this.isSteamGridDbSetupOpen.set(false);
+  }
+
+  protected saveSteamGridDbApiKey(value: string): void {
+    this.onSteamGridDbApiKeyChange(value);
+    this.isSteamGridDbSetupOpen.set(false);
+    this.imageSourceMode.set('search');
+    this.searchError.set(null);
+    this.searchCollapsed.set(false);
+    this.searchFilter.set('all');
+    this.searchPage.set(1);
+    this.searchSuggestions.set([]);
+    this.selectedGameSuggestion.set(null);
   }
 
   protected async submitSearch(): Promise<void> {
@@ -240,28 +377,86 @@ export class EditorComponent {
       return;
     }
 
+    if (!this.steamGridDbApiKey().trim()) {
+      this.searchResults.set([]);
+      this.searchError.set('Add your SteamGridDB API key to search.');
+      return;
+    }
+
     this.searchLoading.set(true);
     this.searchError.set(null);
+    this.searchPage.set(1);
 
     try {
-      const searchTerm = this.searchService.buildSearchQuery(query);
-      const [openverseResults, wikimediaResults] = await Promise.all([
-        this.searchService.searchOpenverse(searchTerm),
-        this.searchService.searchWikimedia(searchTerm),
-      ]);
-      const results = [...openverseResults, ...wikimediaResults].sort((left, right) => {
+      const selectedSuggestion =
+        this.selectedGameSuggestion() ??
+        this.searchSuggestions().find((item) => item.name.toLowerCase() === query.toLowerCase()) ??
+        this.searchSuggestions()[0] ??
+        null;
+
+      if (!selectedSuggestion) {
+        this.searchResults.set([]);
+        this.searchError.set('Pick a game from the suggestions first.');
+        return;
+      }
+
+      this.selectedGameSuggestion.set(selectedSuggestion);
+      this.searchQuery.set(selectedSuggestion.name);
+      this.searchSuggestions.set([]);
+
+      const steamGridDbResults = await this.searchService.searchSteamGridDbAssetsForGame(
+        selectedSuggestion,
+        this.steamGridDbApiKey(),
+      );
+      const results = steamGridDbResults.sort((left, right) => {
         return (
           this.searchService.scoreSearchResult(right) - this.searchService.scoreSearchResult(left)
         );
       });
 
       this.searchResults.set(results);
-      this.searchError.set(results.length ? null : 'No results.');
-    } catch {
+      this.searchError.set(results.length ? null : 'No SteamGridDB results.');
+      this.selectedSearchId.set(null);
+    } catch (error) {
       this.searchResults.set([]);
-      this.searchError.set('Search unavailable.');
+      this.searchError.set(
+        error instanceof Error ? error.message : 'SteamGridDB search unavailable.',
+      );
     } finally {
       this.searchLoading.set(false);
+    }
+  }
+
+  private async loadSearchSuggestions(query: string, requestId: number): Promise<void> {
+    try {
+      const suggestions = await this.searchService.searchSteamGridDbGameSuggestions(
+        query,
+        this.steamGridDbApiKey(),
+      );
+
+      if (requestId !== this.autocompleteRequestId) {
+        return;
+      }
+
+      this.searchSuggestions.set(suggestions.slice(0, 8));
+      if (!this.searchLoading()) {
+        this.searchError.set(suggestions.length ? null : 'No matching SteamGridDB games.');
+      }
+    } catch (error) {
+      if (requestId !== this.autocompleteRequestId) {
+        return;
+      }
+
+      this.searchSuggestions.set([]);
+      if (!this.searchLoading()) {
+        this.searchError.set(
+          error instanceof Error ? error.message : 'SteamGridDB suggestions unavailable.',
+        );
+      }
+    } finally {
+      if (requestId === this.autocompleteRequestId) {
+        this.searchSuggestionsLoading.set(false);
+      }
     }
   }
 
@@ -278,6 +473,7 @@ export class EditorComponent {
 
       this.imageElement.set(element);
       this.image.set(image);
+      this.searchCollapsed.set(true);
       this.resetEditor();
     } catch {
       try {
@@ -289,6 +485,7 @@ export class EditorComponent {
 
         this.imageElement.set(element);
         this.image.set(image);
+        this.searchCollapsed.set(true);
         this.resetEditor();
       } catch {
         this.searchError.set('Image could not be loaded.');
