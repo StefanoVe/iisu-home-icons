@@ -129,6 +129,15 @@ import { SteamGridDbApiKeyModalComponent } from './components/steamgriddb-api-ke
       ></app-output-panel>
     </article>
 
+    @if (isImageLoading()) {
+      <div class="loading-overlay" aria-live="polite" aria-busy="true">
+        <div class="loading-card" role="status">
+          <span class="loading-spinner" aria-hidden="true"></span>
+          <p>Preparing image...</p>
+        </div>
+      </div>
+    }
+
     <app-steamgriddb-api-key-modal
       [isOpen]="isSteamGridDbSetupOpen()"
       [currentApiKey]="steamGridDbApiKey()"
@@ -168,6 +177,53 @@ import { SteamGridDbApiKeyModalComponent } from './components/steamgriddb-api-ke
       margin: 0;
     }
 
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(11, 37, 68, 0.42);
+      backdrop-filter: blur(16px);
+    }
+
+    .loading-card {
+      display: grid;
+      justify-items: center;
+      gap: 14px;
+      min-width: 220px;
+      padding: 24px 28px;
+      border: 1px solid rgba(139, 189, 236, 0.28);
+      border-radius: 18px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(243, 250, 255, 0.95)),
+        rgba(255, 255, 255, 0.98);
+      box-shadow: 0 32px 80px rgba(28, 80, 136, 0.24);
+    }
+
+    .loading-card p {
+      margin: 0;
+      color: var(--text-strong, #173154);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .loading-spinner {
+      width: 42px;
+      height: 42px;
+      border: 4px solid rgba(27, 148, 234, 0.16);
+      border-top-color: #0a67c7;
+      border-radius: 999px;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
     @media (max-width: 920px) {
       :host {
         grid-template-columns: 1fr;
@@ -193,6 +249,7 @@ export class EditorComponent {
   // State
   protected readonly dragState = signal<DragState | null>(null);
   protected readonly imageElement = signal<HTMLImageElement | null>(null);
+  protected readonly isImageLoading = signal(false);
   protected readonly image = signal<LoadedImage | null>(null);
   protected readonly imageSourceMode = signal<ImageSourceMode>('upload');
   protected readonly offsetX = signal(0);
@@ -269,6 +326,7 @@ export class EditorComponent {
 
   // File handling
   protected async onFileSelected(file: File): Promise<void> {
+    this.isImageLoading.set(true);
     try {
       const { element, image, objectUrl } = await this.imageService.loadFileImage(file);
       this.revokeCurrentImageUrl();
@@ -276,9 +334,11 @@ export class EditorComponent {
       this.imageElement.set(element);
       this.image.set(image);
       this.zoom.set(DEFAULT_ZOOM);
-      this.resetEditor();
+      await this.resetEditor();
     } catch {
       // Error already handled by imageService
+    } finally {
+      this.isImageLoading.set(false);
     }
   }
 
@@ -463,6 +523,7 @@ export class EditorComponent {
   protected async useSearchResult(result: SearchResult): Promise<void> {
     this.selectedSearchId.set(result.id);
     this.searchError.set(null);
+    this.isImageLoading.set(true);
 
     try {
       const { element, image } = await this.imageService.loadRemoteImage(
@@ -474,7 +535,7 @@ export class EditorComponent {
       this.imageElement.set(element);
       this.image.set(image);
       this.searchCollapsed.set(true);
-      this.resetEditor();
+      await this.resetEditor();
     } catch {
       try {
         const { element, image } = await this.imageService.loadRemoteImage(
@@ -486,11 +547,16 @@ export class EditorComponent {
         this.imageElement.set(element);
         this.image.set(image);
         this.searchCollapsed.set(true);
-        this.resetEditor();
+        await this.resetEditor();
       } catch {
         this.searchError.set('Image could not be loaded.');
         this.selectedSearchId.set(null);
+      } finally {
+        this.isImageLoading.set(false);
       }
+      return;
+    } finally {
+      this.isImageLoading.set(false);
     }
   }
 
@@ -621,13 +687,13 @@ export class EditorComponent {
   }
 
   // Private helpers
-  private resetEditor(): void {
+  private async resetEditor(): Promise<void> {
     this.zoom.set(DEFAULT_ZOOM);
     this.rotation.set(DEFAULT_ROTATION);
     this.showGrid.set(true);
     this.offsetX.set(0);
     this.offsetY.set(0);
-    this.renderOutput();
+    await this.renderOutput();
   }
 
   private clampOffsets(): void {

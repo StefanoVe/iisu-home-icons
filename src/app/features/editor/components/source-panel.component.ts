@@ -81,7 +81,7 @@ import {
       @if (searchCollapsed() && currentImage(); as image) {
         <div class="search-collapsed">
           <div class="search-collapsed-copy">
-            <p class="search-collapsed-label">Search selection ready</p>
+            <!-- <p class="search-collapsed-label">Search selection ready</p> -->
             <strong>{{ image.name }}</strong>
             <small>Your chosen SteamGridDB image is loaded in the editor.</small>
           </div>
